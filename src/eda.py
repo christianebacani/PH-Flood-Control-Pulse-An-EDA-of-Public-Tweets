@@ -8,12 +8,25 @@ def extract_files_from_zipfile(filepath: str) -> None:
         zip_file.extractall("data") # File destination
 
 def count_rows_and_columns(filepath: str) -> list[int]:
+    # Read dataset
     df = pd.read_csv(filepath)
-    # Get the number of columns and rows of the dataset
-    column_count = len(list(df.keys()))
-    row_count = len(df)
+    rows, cols = df.shape
 
-    return [column_count, row_count]
+    # Plot
+    plt.figure(figsize=(6,5))
+    plt.bar(["Rows", "Columns"], [rows, cols], color=['skyblue', 'salmon'])
+    plt.title("Dataset Shape Overview")
+    plt.ylabel("Count")
+
+    # Save figure
+    plt.savefig(
+        "output/well_known_authors_dpwh_floodcontrol_dataset_shape.png", 
+         dpi=300,
+         bbox_inches='tight'
+    )
+    plt.close()
+
+    return [rows, cols]
 
 def get_column_names_and_dtypes(filepath: str) -> pd.Series:
     df = pd.read_csv(filepath)
