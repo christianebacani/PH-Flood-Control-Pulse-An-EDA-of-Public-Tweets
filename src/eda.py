@@ -89,6 +89,7 @@ def get_column_names_and_dtypes(filepath: str, output_dir: str = "output") -> pd
     TEXT_COLOR = "#2D2D2D"
     DTYPE_COLORS = {
         "object":  "#4C9BE8",
+        "str":     "#4C9BE8",   # ← add this, same color as object
         "int64":   "#57CC99",
         "float64": "#F4A261",
         "bool":    "#C77DFF",
