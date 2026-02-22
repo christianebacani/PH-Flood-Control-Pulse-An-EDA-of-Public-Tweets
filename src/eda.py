@@ -237,24 +237,26 @@ def display_first_few_rows(filepath: str, output_dir: str = "output", n_rows: in
         ax.add_patch(card_patch)
 
         # ── Card header ───────────────────────────────────────────────────
+        HEADER_H = 0.06  # fixed header height regardless of column count
+
         header_patch = mpatches.FancyBboxPatch(
-            (0.01, 0.93 - (1 / (n_cols + 1))), 0.98, (1 / (n_cols + 1)),
+            (0.01, 0.92), 0.98, HEADER_H,
             boxstyle="round,pad=0.005",
             linewidth=0, facecolor=HEADER_COLOR,
             transform=ax.transAxes, zorder=1
         )
         ax.add_patch(header_patch)
-        ax.text(0.5, 0.97 - (0.5 / (n_cols + 1)),
-                f"Row {card_idx + 1}",
-                transform=ax.transAxes,
-                ha="center", va="center",
-                fontsize=11, fontweight="bold", color="white", zorder=2)
+        ax.text(0.5, 0.95,
+            f"Row {card_idx + 1}",
+            transform=ax.transAxes,
+            ha="center", va="center",
+            fontsize=11, fontweight="bold", color="white", zorder=2)
 
         # ── Rows per card ─────────────────────────────────────────────────
-        row_h = (1 - (1 / (n_cols + 1))) / n_cols
+        row_h = 0.90 / n_cols  # remaining 90% of axes split across all columns
 
         for i, (col, val) in enumerate(row.items()):
-            y_top = 1 - (1 / (n_cols + 1)) - i * row_h
+            y_top = 0.92 - i * row_h
             y_mid = y_top - row_h / 2
 
             # Alternating background
