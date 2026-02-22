@@ -8,16 +8,21 @@ def extract_files_from_zipfile(filepath: str) -> None:
 
 def count_rows_and_columns(filepath: str) -> list[int]:
     df = pd.read_csv(filepath)
-    column_count = len(list(df.keys()))    
+    # Get the number of columns and rows of the dataset
+    column_count = len(list(df.keys()))
     row_count = len(df)
 
     return [column_count, row_count]
 
 def get_column_names_and_dtypes(filepath: str) -> pd.Series:
     df = pd.read_csv(filepath)
+    # Get the column names and datatype of the dataset
     column_names_and_dtypes = df.dtypes
 
     return column_names_and_dtypes
 
-def display_first_and_last_few_rows(filepath: str):
+def display_first_few_rows(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath)
+    first_few_rows = df.head(3)
+
+    return first_few_rows
