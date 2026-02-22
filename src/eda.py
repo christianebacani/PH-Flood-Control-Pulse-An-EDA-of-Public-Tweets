@@ -101,7 +101,7 @@ def get_column_names_and_dtypes(filepath: str, output_dir: str = "output") -> pd
 
     # ── Figure: two panels side by side ──────────────────────────────────────
     fig, (ax_bar, ax_table) = plt.subplots(
-        1, 2, figsize=(13, max(4, len(df.columns) * 0.55)),
+        1, 2, figsize=(13, max(4, len(df.columns) * 0.45)),
         gridspec_kw={"width_ratios": [1, 1.6]}
     )
     fig.patch.set_facecolor(BG_COLOR)
