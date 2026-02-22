@@ -12,3 +12,9 @@ def count_rows_and_columns(filepath: str) -> list[int]:
     row_count = len(df)
 
     return [column_count, row_count]
+
+def get_column_names_and_dtypes(filepath: str) -> pd.Series:
+    df = pd.read_csv(filepath)
+    column_names_and_dtypes = list(df.dtypes)
+
+    return column_names_and_dtypes
