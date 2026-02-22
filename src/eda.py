@@ -1,6 +1,7 @@
 import pandas as pd
 from zipfile import ZipFile
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from pathlib import Path
 
 def extract_files_from_zipfile(filepath: str) -> None:
@@ -187,9 +188,111 @@ def get_column_names_and_dtypes(filepath: str, output_dir: str = "output") -> pd
     print(f"✓ Chart saved → {out_path}")
     return column_names_and_dtypes
 
-def display_first_few_rows(filepath: str) -> pd.DataFrame:
-    df = pd.read_csv(filepath)
-    # Get the first 3 rows of the dataset
-    first_few_rows = df.head(3)
+def display_first_few_rows(filepath: str, output_dir: str = "output", n_rows: int = 3) -> pd.DataFrame:
+    base_filename = str(filepath).replace("data/", "")
+    base_filename = base_filename.replace(".csv", "")
 
+    df = pd.read_csv(filepath)
+    first_few_rows = df.head(n_rows)
+
+    # ── Style ────────────────────────────────────────────────────────────────
+    BG_COLOR    = "#F8F9FA"
+    TEXT_COLOR  = "#2D2D2D"
+    CARD_COLOR  = "#FFFFFF"
+    HEADER_COLOR = "#4C9BE8"
+    ALT_ROW     = "#F0F4FF"
+    FONT        = {"font.family": "DejaVu Sans", "font.size": 10}
+    plt.rcParams.update({**FONT, "text.color": TEXT_COLOR})
+
+    n_cols  = len(df.columns)
+    n_cards = len(first_few_rows)
+
+    # ── Figure: one card per row, stacked vertically ─────────────────────────
+    card_height = n_cols * 0.32 + 0.8
+    fig_height  = card_height * n_cards + 1.0
+
+    fig, axes = plt.subplots(n_cards, 1, figsize=(11, fig_height))
+    fig.patch.set_facecolor(BG_COLOR)
+
+    if n_cards == 1:
+        axes = [axes]
+
+    fig.suptitle("First Few Rows Preview", fontsize=15, fontweight="bold",
+             color=TEXT_COLOR, y=1.0)
+
+    for card_idx, (ax, (_, row)) in enumerate(zip(axes, first_few_rows.iterrows())):
+        ax.set_facecolor(BG_COLOR)
+        ax.axis("off")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        # ── Card background ───────────────────────────────────────────────
+        card_patch = mpatches.FancyBboxPatch(
+            (0.01, 0.02), 0.98, 0.96,
+            boxstyle="round,pad=0.01",
+            linewidth=1.2, edgecolor="#DDDDDD",
+            facecolor=CARD_COLOR,
+            transform=ax.transAxes, zorder=0
+        )
+        ax.add_patch(card_patch)
+
+        # ── Card header ───────────────────────────────────────────────────
+        header_patch = mpatches.FancyBboxPatch(
+            (0.01, 0.93 - (1 / (n_cols + 1))), 0.98, (1 / (n_cols + 1)),
+            boxstyle="round,pad=0.005",
+            linewidth=0, facecolor=HEADER_COLOR,
+            transform=ax.transAxes, zorder=1
+        )
+        ax.add_patch(header_patch)
+        ax.text(0.5, 0.97 - (0.5 / (n_cols + 1)),
+                f"Row {card_idx + 1}",
+                transform=ax.transAxes,
+                ha="center", va="center",
+                fontsize=11, fontweight="bold", color="white", zorder=2)
+
+        # ── Rows per card ─────────────────────────────────────────────────
+        row_h = (1 - (1 / (n_cols + 1))) / n_cols
+
+        for i, (col, val) in enumerate(row.items()):
+            y_top = 1 - (1 / (n_cols + 1)) - i * row_h
+            y_mid = y_top - row_h / 2
+
+            # Alternating background
+            if i % 2 == 0:
+                ax.add_patch(plt.Rectangle(
+                    (0.01, y_top - row_h), 0.98, row_h,
+                    transform=ax.transAxes,
+                    facecolor=ALT_ROW, zorder=0
+                ))
+
+            # Column name
+            ax.text(0.04, y_mid, str(col),
+                    transform=ax.transAxes,
+                    ha="left", va="center",
+                    fontsize=9.5, fontweight="bold", color="#555555", zorder=2)
+
+            # Divider
+            ax.axvline(x=0.42, ymin=y_top - row_h, ymax=y_top,
+                       color="#DDDDDD", linewidth=0.8, zorder=1)
+
+            # Value — strip newlines and truncate long strings
+            str_val = str(val).replace("\n", " ").replace("\r", " ")
+            if len(str_val) > 55:
+                str_val = str_val[:52] + "..."
+
+            ax.text(0.44, y_mid, str_val,
+                    transform=ax.transAxes,
+                    ha="left", va="center",
+                    fontsize=9.5, color=TEXT_COLOR, zorder=2)
+
+    plt.tight_layout(h_pad=1.5)
+    fig.subplots_adjust(top=0.97)
+
+    # ── Save ─────────────────────────────────────────────────────────────────
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    out_path = Path(output_dir) / f"{base_filename}_first_few_rows.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+    print(f"✓ Chart saved → {out_path}")
     return first_few_rows
