@@ -67,7 +67,7 @@ def count_rows_and_columns(filepath: str, output_dir: str = "output") -> tuple[i
 
     # ── Save ─────────────────────────────────────────────────────────────────
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    out_path = Path(output_dir) / "dataset_shape.png"
+    out_path = Path(output_dir) / "well_known_authors_dpwh_floodcontrol_dataset_shape.png"
     fig.savefig(out_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
