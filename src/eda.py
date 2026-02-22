@@ -1,5 +1,6 @@
 import pandas as pd
 from zipfile import ZipFile
+import matplotlib.pyplot as plt
 
 def extract_files_from_zipfile(filepath: str) -> None:
     # Extract all the files inside the zipfile of data/ directory
@@ -23,6 +24,7 @@ def get_column_names_and_dtypes(filepath: str) -> pd.Series:
 
 def display_first_few_rows(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath)
+    # Get the first 3 rows of the dataset
     first_few_rows = df.head(3)
 
     return first_few_rows
