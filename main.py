@@ -19,6 +19,9 @@ dpwh_flood_control_tweets_columns_and_dtypes = get_column_names_and_dtypes(
     "data/for_export_dpwh_floodcontrol.csv"
 )
 
-display_first_few_rows(
+twitter_authors_preview = display_first_few_rows(
     "data/well_known_authors_dpwh_floodcontrol.csv"
+)
+dpwh_flood_control_tweets_preview = display_first_few_rows(
+    "data/for_export_dpwh_floodcontrol.csv"    
 )
