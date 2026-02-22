@@ -1,7 +1,7 @@
 import pandas as pd
-from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from zipfile import ZipFile
 from pathlib import Path
 
 def extract_files_from_zipfile(filepath: str) -> None:
