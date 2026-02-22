@@ -9,16 +9,6 @@ def extract_files_from_zipfile(filepath: str) -> None:
         zip_file.extractall("data") # File destination
 
 def count_rows_and_columns(filepath: str, output_dir: str = "output") -> tuple[int, int]:
-    """
-    Reads a CSV file, plots a styled bar chart of its shape, and returns (rows, cols).
-
-    Args:
-        filepath:   Path to the CSV file.
-        output_dir: Directory where the chart PNG will be saved.
-
-    Returns:
-        A (rows, cols) tuple.
-    """
     df = pd.read_csv(filepath)
     rows, cols = df.shape
 
