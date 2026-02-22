@@ -18,3 +18,6 @@ def get_column_names_and_dtypes(filepath: str) -> pd.Series:
     column_names_and_dtypes = df.dtypes
 
     return column_names_and_dtypes
+
+def display_first_and_last_few_rows(filepath: str):
+    df = pd.read_csv(filepath)
