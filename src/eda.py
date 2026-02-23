@@ -306,6 +306,9 @@ def get_null_count_per_column(filepath: str):
     null_count_per_column = {}
 
     for column in columns:
-        null_count_per_column[column] = df[column].isna().sum()
+        total_nan_count = df[column].isna().sum()
+        total_empty_string_count = (df[column] == '').sum()
+
+        null_count_per_column[column] = total_nan_count + total_empty_string_count
 
     return null_count_per_column
