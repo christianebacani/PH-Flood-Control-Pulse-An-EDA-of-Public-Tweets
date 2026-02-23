@@ -1,6 +1,6 @@
 # PH Flood Control Pulse: An EDA of Public Tweets
 
-This project provides Exploratory Data Analysis for [public tweets of well-known Twitter authors regarding about the PH Flood Control issue of the DPWH](#https://www.kaggle.com/datasets/bwandoclswando/tweets-on-dpwh-and-flood-control-projects-2025)(Department of Public Works and Highways).
+This project provides Exploratory Data Analysis for [public tweets of well-known Twitter authors regarding about the PH Flood Control issue of the DPWH](https://www.kaggle.com/datasets/bwandoclswando/tweets-on-dpwh-and-flood-control-projects-2025) (Department of Public Works and Highways).
 
 ---
 
