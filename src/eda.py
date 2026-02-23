@@ -395,7 +395,8 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
             mpatches.Patch(color="#F07167", label="Critical  (>20%)"),
         ]
         ax.legend(handles=legend_items, loc="upper right",
-                  frameon=False, fontsize=10)
+            bbox_to_anchor=(1, 1.25),
+            frameon=False, fontsize=10)
 
     # ── Save ─────────────────────────────────────────────────────────────────
     Path(output_dir).mkdir(parents=True, exist_ok=True)
