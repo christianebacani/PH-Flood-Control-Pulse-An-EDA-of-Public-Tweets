@@ -298,3 +298,14 @@ def display_first_few_rows(filepath: str, output_dir: str = "output", n_rows: in
 
     print(f"✓ Chart saved → {out_path}")
     return first_few_rows
+
+def null_count_per_column(filepath: str):
+    df = pd.read_csv(filepath)
+    columns = list(df.columns)
+
+    null_values_per_column = {}
+
+    for column in columns:
+        null_values_per_column[column] = df[column].isna().sum()
+
+    return null_values_per_column
