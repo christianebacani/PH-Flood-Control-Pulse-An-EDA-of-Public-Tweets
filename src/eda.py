@@ -299,16 +299,109 @@ def display_first_few_rows(filepath: str, output_dir: str = "output", n_rows: in
     print(f"✓ Chart saved → {out_path}")
     return first_few_rows
 
-def get_null_count_per_column(filepath: str):
+def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict:
+    base_filename = str(filepath).replace("data/", "")
+    base_filename = base_filename.replace(".csv", "")
+
     df = pd.read_csv(filepath)
     columns = list(df.columns)
+    total_rows = len(df)
 
+    # ── Compute null counts ───────────────────────────────────────────────────
     null_count_per_column = {}
-
     for column in columns:
         total_nan_count = df[column].isna().sum()
         total_empty_string_count = (df[column] == '').sum()
+        null_count_per_column[column] = int(total_nan_count + total_empty_string_count)
 
-        null_count_per_column[column] = total_nan_count + total_empty_string_count
+    # ── Filter only columns with nulls ───────────────────────────────────────
+    null_series = {k: v for k, v in null_count_per_column.items() if v > 0}
 
+    # ── Style ────────────────────────────────────────────────────────────────
+    BG_COLOR   = "#F8F9FA"
+    TEXT_COLOR = "#2D2D2D"
+    FONT       = {"font.family": "DejaVu Sans", "font.size": 11}
+    plt.rcParams.update({**FONT, "text.color": TEXT_COLOR, "axes.labelcolor": TEXT_COLOR})
+
+    def severity_color(pct):
+        if pct < 5:   return "#57CC99"   # green  — low
+        if pct < 20:  return "#F4A261"   # orange — moderate
+        return "#F07167"                 # red    — critical
+
+    # ── Figure ───────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(11, max(4, len(null_series) * 0.55 + 1.5)))
+    fig.patch.set_facecolor(BG_COLOR)
+    ax.set_facecolor(BG_COLOR)
+
+    if not null_series:
+        # ── No nulls: show a clean all-good message ───────────────────────
+        ax.text(0.5, 0.5, "✓ No missing values found!",
+                transform=ax.transAxes,
+                ha="center", va="center",
+                fontsize=16, fontweight="bold", color="#57CC99")
+        ax.axis("off")
+        ax.set_title("Missing Data Analysis", fontsize=15, fontweight="bold",
+                     pad=20, color=TEXT_COLOR)
+    else:
+        col_names   = list(null_series.keys())
+        null_counts = list(null_series.values())
+        pcts        = [v / total_rows * 100 for v in null_counts]
+        colors      = [severity_color(p) for p in pcts]
+
+        # Sort by percentage descending
+        sorted_data = sorted(zip(pcts, null_counts, col_names, colors), reverse=False)
+        pcts, null_counts, col_names, colors = zip(*sorted_data)
+
+        bars = ax.barh(col_names, pcts, color=colors,
+                       edgecolor="white", linewidth=1.2, zorder=3)
+
+        # ── Gridlines ────────────────────────────────────────────────────
+        ax.xaxis.grid(True, color="#DDDDDD", linestyle="--", linewidth=0.8, zorder=0)
+        ax.set_axisbelow(True)
+
+        # ── Spine cleanup ─────────────────────────────────────────────────
+        for spine in ["top", "right", "bottom"]:
+            ax.spines[spine].set_visible(False)
+        ax.spines["left"].set_color("#CCCCCC")
+        ax.tick_params(colors=TEXT_COLOR, length=0)
+
+        # ── Value labels: "1,234 (5.67%)" ────────────────────────────────
+        for bar, count, pct, color in zip(bars, null_counts, pcts, colors):
+            ax.text(
+                pct + 0.3,
+                bar.get_y() + bar.get_height() / 2,
+                f"{count:,}  ({pct:.1f}%)",
+                va="center", ha="left",
+                fontsize=10, fontweight="bold",
+                color=color
+            )
+
+        ax.set_xlabel("% Missing", fontsize=11, labelpad=8)
+        ax.set_xlim(0, max(pcts) * 1.45)
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.0f}%"))
+
+        # ── Title & subtitle ──────────────────────────────────────────────
+        ax.set_title("Missing Data Analysis", fontsize=15, fontweight="bold",
+                     pad=30, color=TEXT_COLOR)
+        ax.text(0.5, 1.02,
+                f"{len(null_series)} of {len(columns)} columns have missing values",
+                transform=ax.transAxes,
+                ha="center", fontsize=10, color="#888888")
+
+        # ── Legend ────────────────────────────────────────────────────────
+        legend_items = [
+            mpatches.Patch(color="#57CC99", label="Low  (<5%)"),
+            mpatches.Patch(color="#F4A261", label="Moderate  (5–20%)"),
+            mpatches.Patch(color="#F07167", label="Critical  (>20%)"),
+        ]
+        ax.legend(handles=legend_items, loc="upper right",
+                  frameon=False, fontsize=10)
+
+    # ── Save ─────────────────────────────────────────────────────────────────
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    out_path = Path(output_dir) / f"{base_filename}_missing_data.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+    print(f"✓ Chart saved → {out_path}")
     return null_count_per_column
