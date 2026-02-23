@@ -33,3 +33,6 @@ dpwh_flood_control_tweets_preview = display_first_few_rows(
 twitter_authors_null_count_per_column = get_null_count_per_column(
     "data/well_known_authors_dpwh_floodcontrol.csv"
 )
+dpwh_flood_control_tweets_preview_null_count_per_column = get_null_count_per_column(
+    "data/for_export_dpwh_floodcontrol.csv"
+)
