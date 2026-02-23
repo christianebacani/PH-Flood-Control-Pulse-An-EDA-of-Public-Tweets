@@ -377,7 +377,7 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
             )
 
         ax.set_xlabel("% Missing", fontsize=11, labelpad=8)
-        ax.set_xlim(0, max(pcts) * 1.45)
+        ax.set_xlim(0, min(max(pcts) * 1.45, 100))
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.0f}%"))
 
         # ── Title & subtitle ──────────────────────────────────────────────
