@@ -68,10 +68,10 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 
 - Check first the type of missing data for that variable
      MCAR (Missing completely at random)
-        The reason of missingness of data was not about the other observed variable or the value itself
+        The reason of missingness of data was not about the other observed variable, the value itself, or unobserved variable but because it was complete random which is rare
 
      MAR (Missing at a random)
         The reason of missingness of data is about the other observed variable
 
      MNAR (Missing not a random)
-        The reason of missingness of the data is about the value of the variable itself
+        The reason of missingness of the data is about the value of the variable itself, unobserved variable and not completely random instances
