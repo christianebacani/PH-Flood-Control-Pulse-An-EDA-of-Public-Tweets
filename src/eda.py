@@ -402,8 +402,9 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
             mpatches.Patch(color="#F4A261", label="Moderate  (5–20%)"),
             mpatches.Patch(color="#F07167", label="Critical  (>20%)"),
         ]
-        ax_bar.legend(handles=legend_items, loc="lower right",
-                      frameon=False, fontsize=10)
+        ax_bar.legend(handles=legend_items, loc="upper center",
+                      bbox_to_anchor=(0.5, -0.15),
+                      ncol=3, frameon=False, fontsize=10)
 
     # ── RIGHT: full column audit table ───────────────────────────────────────
     ax_table.set_facecolor(BG_COLOR)
