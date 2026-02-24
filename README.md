@@ -73,11 +73,11 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
         Method of imputation: Use mean, median, mode
 
      MAR (Missing at a random)
-        The reason of missingness of data is about the other observed variable
+        Reason of missingness: Other observed variable is the reason or consist of correlation to the missingness of the data
 
         Method of imputation: Use mean, median, mode based on the observed variable to impute the data or use advance statistical or ML model
 
      MNAR (Missing not a random)
-        The reason of missingness of the data is about the value of the variable itself, unobserved variable and not completely random instances
+        Reason of missingness: Value of the very own variable, and unobserved variable and not completely random instances
 
         Method of imputation: Don't impute
