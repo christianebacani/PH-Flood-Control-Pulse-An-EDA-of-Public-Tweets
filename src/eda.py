@@ -337,8 +337,8 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
 
     # ── Figure: two panels side by side ──────────────────────────────────────
     fig, (ax_bar, ax_table) = plt.subplots(
-        1, 2, figsize=(15, max(4, len(df.columns) * 0.45)),
-        gridspec_kw={"width_ratios": [1.4, 1]}
+        1, 2, figsize=(17, max(4, len(df.columns) * 0.45)),
+        gridspec_kw={"width_ratios": [1.2, 1.4]}
     )
     fig.patch.set_facecolor(BG_COLOR)
     fig.suptitle("Missing Data Analysis", fontsize=15, fontweight="bold",
@@ -418,16 +418,16 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
     # Header
     ax_table.text(0.05, 1 - row_height * 0.5, "Column",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
-                  transform=ax_table.transAxes, va="center")
+                  transform=ax_table.transAxes, va="center", ha='left')
     ax_table.text(0.55, 1 - row_height * 0.5, "Nulls",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
-                  transform=ax_table.transAxes, va="center")
+                  transform=ax_table.transAxes, va="center", ha='left')
     ax_table.text(0.72, 1 - row_height * 0.5, "% Missing",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
-                  transform=ax_table.transAxes, va="center")
-    ax_table.text(0.98, 1 - row_height * 0.5, "Status",
+                  transform=ax_table.transAxes, va="center", ha='left')
+    ax_table.text(0.88, 1 - row_height * 0.5, "Status",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
-                  transform=ax_table.transAxes, va="center")
+                  transform=ax_table.transAxes, va="center", ha='left')
 
     # Divider under header
     ax_table.axhline(y=1 - row_height, color="#CCCCCC", linewidth=1)
