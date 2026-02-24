@@ -71,7 +71,7 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
         The reason of missingness of data was not about the other observed variable or the value itself
 
      MAR (Missing at a random)
-        The reason of missingess of data is about the other observed variable
+        The reason of missingness of data is about the other observed variable
 
      MNAR (Missing not a random)
-        The reason of missingess of the data is about the value of the variable itself
+        The reason of missingness of the data is about the value of the variable itself
