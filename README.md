@@ -68,10 +68,16 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 
 - Check first the type of missing data for that variable
      MCAR (Missing completely at random)
-        The reason of missingness of data was not about the other observed variable, the value itself, or unobserved variable but because it was complete random which is rare
+        Reason of missingness: Missing data was not correlated to other observed variable, the value itself, or unobserved variable but because the missing data occurs during random instances which is rare
+
+        Method of imputation: Use mean, median, mode
 
      MAR (Missing at a random)
         The reason of missingness of data is about the other observed variable
 
+        Method of imputation: Use mean, median, mode based on the observed variable to impute the data or use advance statistical or ML model
+
      MNAR (Missing not a random)
         The reason of missingness of the data is about the value of the variable itself, unobserved variable and not completely random instances
+
+        Method of imputation: Don't impute
