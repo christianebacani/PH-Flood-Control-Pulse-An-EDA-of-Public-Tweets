@@ -32,13 +32,12 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 
 ![Missing Data](output/for_export_dpwh_floodcontrol_missing_data.png)
 
-> **2 of 16 columns** have missing values. Both are structurally valid cases of
-> **MCAR (Missing Completely At Random)** — the missingness is by design, not data error.
+> **2 of 16 columns** have missing values.
 >
-> | Column | Missing | % | Type | Decision |
-> |---|---|---|---|---|
-> | `pseudo_inReplyToUsername` | 123,213 | 62.9% | MCAR | **Keep** — `NaN` means the tweet is not a reply |
-> | `quoted_pseudo_id` | 170,346 | 87.0% | MCAR | **Keep** — `NaN` means the tweet is not a quote tweet |
+> | Column | Missing | % | Type | Reason | Decision |
+> |---|---|---|---|---|---|
+> | `pseudo_inReplyToUsername` | 123,213 | 62.9% | **MAR** | Always empty when `isReply = False`, always filled when `isReply = True` — missingness is perfectly predicted by `isReply` | **Keep as-is** — `NaN` means the tweet is not a reply |
+> | `quoted_pseudo_id` | 170,346 | 87.0% | **MCAR** | No observed variable consistently predicts missingness — filled only for quote tweets but no `isQuote` column exists | **Keep as-is** — `NaN` means the tweet is not a quote tweet |
 >
 > No rows need to be removed. The remaining **14 columns are clean** with 0% missing values.
 
@@ -73,13 +72,12 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 ![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
 
 > **2 of 8 columns** have missing values. Both are user-generated fields where
-> missingness reflects the author simply not filling in their profile — classified
-> as **MCAR (Missing Completely At Random)**.
+> missingness reflects the author simply not filling in their profile.
 >
-> | Column | Missing | % | Type | Decision |
-> |---|---|---|---|---|
-> | `author_profile_bio_description` | 6 | 2.6% | MCAR | **Keep** — fill with `"No bio provided"` for display purposes |
-> | `author_location` | 40 | 17.6% | MCAR | **Keep** — fill with `"Unknown"` for display purposes |
+> | Column | Missing | % | Type | Reason | Decision |
+> |---|---|---|---|---|---|
+> | `author_profile_bio_description` | 6 | 2.6% | **MCAR** | Random user choice — no observed variable predicts whether a user fills in their bio | **Keep, fill with `"No bio provided"`** for display purposes |
+> | `author_location` | 40 | 17.6% | **MCAR** | Random user choice — no observed variable predicts whether a user sets their location | **Keep, fill with `"Unknown"`** for display purposes |
 >
 > No rows need to be removed. The remaining **6 columns are clean** with 0% missing values.
 
