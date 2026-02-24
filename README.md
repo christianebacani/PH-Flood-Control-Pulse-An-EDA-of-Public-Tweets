@@ -54,3 +54,14 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 > Notable accounts include a radio host, a lawyer, and ABCWorldNews — suggesting
 > the dataset captures both local and international voices.
 ---
+
+## Note
+
+- When should I remove the row?
+    70-90% of values of every variable is NULL for that row
+    If the value of the primary key or identifier is missing
+    The target variable is missing (in Machine Learning case)
+
+- When should I keep the row?
+    Few values of different variable is NULL for that row
+    Missingness is valid (for example the end_date column for storing the end date of OJT)
