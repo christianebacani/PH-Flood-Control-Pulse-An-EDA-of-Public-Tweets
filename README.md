@@ -28,6 +28,20 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 > A preview of the first 3 rows shows tweets in both English (`en`) and Tagalog (`tl`),
 > with most having low engagement counts. The `text` column contains the raw tweet content.
 
+### 1.4 Missing Data Analysis
+
+![Missing Data](output/for_export_dpwh_floodcontrol_missing_data.png)
+
+> **2 of 16 columns** have missing values. Both are structurally valid cases of
+> **MCAR (Missing Completely At Random)** — the missingness is by design, not data error.
+>
+> | Column | Missing | % | Type | Decision |
+> |---|---|---|---|---|
+> | `pseudo_inReplyToUsername` | 123,213 | 62.9% | MCAR | **Keep** — `NaN` means the tweet is not a reply |
+> | `quoted_pseudo_id` | 170,346 | 87.0% | MCAR | **Keep** — `NaN` means the tweet is not a quote tweet |
+>
+> No rows need to be removed. The remaining **14 columns are clean** with 0% missing values.
+
 ---
 
 ## Dataset 2: Well Known Authors (DPWH Flood Control)
@@ -53,20 +67,20 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 > The first 3 rows reveal high-profile accounts with large follower counts (632K, 254K, 1.7M).
 > Notable accounts include a radio host, a lawyer, and ABCWorldNews — suggesting
 > the dataset captures both local and international voices.
+
+### 2.4 Missing Data Analysis
+
+![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
+
+> **2 of 8 columns** have missing values. Both are user-generated fields where
+> missingness reflects the author simply not filling in their profile — classified
+> as **MCAR (Missing Completely At Random)**.
+>
+> | Column | Missing | % | Type | Decision |
+> |---|---|---|---|---|
+> | `author_profile_bio_description` | 6 | 2.6% | MCAR | **Keep** — fill with `"No bio provided"` for display purposes |
+> | `author_location` | 40 | 17.6% | MCAR | **Keep** — fill with `"Unknown"` for display purposes |
+>
+> No rows need to be removed. The remaining **6 columns are clean** with 0% missing values.
+
 ---
-
-## Note
-
-- When should I remove the row?
-    70-90% of values of every variable is NULL for that row
-    If the value of the primary key or identifier is missing
-    The target variable is missing (in Machine Learning case)
-
-- When should I keep the row?
-    Few values of different variable is NULL for that row
-    Missingness is valid (for example the end_date column for storing the end date of OJT)
-
-- Check first the type of missing data for that variable
-   MCAR (Missing completely at random)
-   MAR (Missing at random)
-   MNAR (Missing not at random)
