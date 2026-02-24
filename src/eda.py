@@ -391,10 +391,10 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
 
         ax_bar.set_title("Columns with Missing Values", fontsize=12,
                          fontweight="bold", pad=12, color=TEXT_COLOR)
-        ax_bar.text(0.5, 1.02,
-                    f"{len(null_series)} of {len(columns)} columns have missing values",
-                    transform=ax_bar.transAxes,
-                    ha="center", fontsize=10, color="#888888")
+        ax_bar.text(0.5, 1.00,
+            f"{len(null_series)} of {len(columns)} columns have missing values",
+            transform=ax_bar.transAxes,
+            ha="center", fontsize=10, color="#888888")
 
         # Legend
         legend_items = [
@@ -421,10 +421,10 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
     ax_table.text(0.55, 1 - row_height * 0.5, "Nulls",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
                   transform=ax_table.transAxes, va="center")
-    ax_table.text(0.75, 1 - row_height * 0.5, "% Missing",
+    ax_table.text(0.72, 1 - row_height * 0.5, "% Missing",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
                   transform=ax_table.transAxes, va="center")
-    ax_table.text(0.92, 1 - row_height * 0.5, "Status",
+    ax_table.text(0.98, 1 - row_height * 0.5, "Status",
                   fontsize=11, fontweight="bold", color=TEXT_COLOR,
                   transform=ax_table.transAxes, va="center")
 
@@ -451,10 +451,10 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
         ax_table.text(0.55, y, f"{null_count:,}", fontsize=9.5,
                       fontweight="bold", color=color,
                       transform=ax_table.transAxes, va="center")
-        ax_table.text(0.75, y, f"{pct:.1f}%", fontsize=9.5,
+        ax_table.text(0.72, y, f"{pct:.1f}%", fontsize=9.5,
                       fontweight="bold", color=color,
                       transform=ax_table.transAxes, va="center")
-        ax_table.text(0.92, y, severity_label(pct), fontsize=9.5,
+        ax_table.text(0.88, y, severity_label(pct), fontsize=9.5,
                       fontweight="bold", color=color,
                       transform=ax_table.transAxes, va="center")
 
