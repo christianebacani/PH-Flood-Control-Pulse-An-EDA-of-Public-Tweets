@@ -67,17 +67,6 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
     Missingness is valid (for example the end_date column for storing the end date of OJT)
 
 - Check first the type of missing data for that variable
-     MCAR (Missing completely at random)
-        Reason of missingness: Missing data was not correlated to other observed variable, the value itself, or unobserved variable but because the missing data occurs during random instances which is rare
-
-        Method of imputation: Use mean, median, mode
-
-     MAR (Missing at a random)
-        Reason of missingness: Other observed variable is the reason or consist of correlation to the missingness of the data
-
-        Method of imputation: Use mean, median, mode based on the observed variable to impute the data or use advance statistical or ML model
-
-     MNAR (Missing not a random)
-        Reason of missingness: Value of the very own variable, and unobserved variable and not completely random instances
-
-        Method of imputation: Don't impute
+   MCAR (Missing completely at random)
+   MAR (Missing at random)
+   MNAR (Missing not at random)
