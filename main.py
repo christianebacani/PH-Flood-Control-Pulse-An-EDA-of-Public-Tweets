@@ -3,6 +3,7 @@ from src.eda import count_rows_and_columns
 from src.eda import get_column_names_and_dtypes
 from src.eda import display_first_few_rows
 from src.eda import get_null_count_per_column
+from src.eda import get_duplicates_count_per_column
 
 extract_files_from_zipfile("data/archive.zip")
 
@@ -36,4 +37,8 @@ twitter_users_null_count_per_column = get_null_count_per_column(
 )
 flood_control_tweets_null_count_per_column = get_null_count_per_column(
     "data/for_export_dpwh_floodcontrol.csv"
+)
+
+twitter_users_duplicates_count_per_column = get_duplicates_count_per_column(
+    "data/well_known_authors_dpwh_floodcontrol.csv"
 )
