@@ -2,17 +2,11 @@
 
 ---
 
-## Missing completely at a random (MCAR)
-
-### The reason why the value of that variable is missing is completely at a random circumstances.
-
-## Missing at random (MAR)
-
-### The reason why the value of that variable is missing is related to the other variable in the dataset.
-
-## Missing not at random (MNAR)
-
-### The reason why the value of that variable is misisng is because of the variable itself (Hidden, Sensitive, or because of value itself).
+| Types of missing data | Abbreviation | Description |
+| Missing completely at random | MCAR | The reason why the value of that variable is missing is completely at a random circumstances |
+| Missing at random | MAR | The reason why the value of that variable is missing is related to the other variable in the dataset |
+| Missing not at random | MNAR | 
+Missing not at random (MNAR) | The reason why the value of that variable is misisng is because of the variable itself (Hidden, Sensitive, or because of value itself) |
 
 ---
 
@@ -26,6 +20,8 @@ Imputation strategies:
 - Hot deck imputation (Look for a record in the dataset with the similar characteristics and fill the value based on that).
 - Cold deck imputation (Look for a record in another dataset with the similar characteristics and fill the value based on that).
 - Machine learning model.
+
+---
 
 - Questions to ask to determine which imputation strategies to use:
     - How important is the missing data?
