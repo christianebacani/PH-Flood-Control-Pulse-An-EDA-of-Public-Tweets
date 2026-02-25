@@ -6,8 +6,7 @@
 | --------------------- | ------------ | ----------- |
 | Missing completely at random | MCAR | The reason why the value of that variable is missing is completely at a random circumstances |
 | Missing at random | MAR | The reason why the value of that variable is missing is related to the other variable in the dataset |
-| Missing not at random | MNAR | 
-Missing not at random (MNAR) | The reason why the value of that variable is misisng is because of the variable itself (Hidden, Sensitive, or because of value itself) |
+| Missing not at random | MNAR | The reason why the value of that variable is misisng is because of the variable itself (Hidden, Sensitive, or because of value itself) |
 
 ---
 
