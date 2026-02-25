@@ -42,3 +42,6 @@ flood_control_tweets_null_count_per_column = get_null_count_per_column(
 twitter_users_duplicates_count_per_column = get_duplicates_count_per_column(
     "data/well_known_authors_dpwh_floodcontrol.csv"
 )
+flood_control_tweets_duplicates_count_per_column = get_duplicates_count_per_column(
+    "data/for_export_dpwh_floodcontrol.csv"
+)
