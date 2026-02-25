@@ -1,8 +1,6 @@
 # Types of missing data
 
----
-
-| Types of missing data | Abbreviation | Description |
+| Type | Code | Description |
 | --------------------- | ------------ | ----------- |
 | Missing completely at random | MCAR | The reason why the value of that variable is missing is completely at a random circumstances |
 | Missing at random | MAR | The reason why the value of that variable is missing is related to the other variable in the dataset |
