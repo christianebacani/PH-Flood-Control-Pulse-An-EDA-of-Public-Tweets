@@ -467,3 +467,10 @@ def get_null_count_per_column(filepath: str, output_dir: str = "output") -> dict
 
     print(f"✓ Chart saved → {out_path}")
     return null_count_per_column
+
+def count_duplicates_per_column(filepath: str):
+    df = pd.read_csv(filepath)
+    columns = df.columns
+
+    for column in columns:
+        len(df[column]) - len(df[column].drop_duplicates())
