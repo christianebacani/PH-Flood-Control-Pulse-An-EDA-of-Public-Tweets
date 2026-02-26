@@ -790,10 +790,10 @@ def get_data_quality_for_tweets(
     ax_bar.tick_params(colors=TEXT_COLOR, length=0)
     ax_bar.set_xlabel("Tweet Count", fontsize=11, labelpad=8)
 
-    for bar, count, display_val in zip(bars, values_ordered, values_display):
+    for bar, count in zip(bars, values_ordered):
         pct = count / total_rows * 100
         ax_bar.text(
-            display_val + max_val * 0.02,        
+            max_val * 0.02,
             bar.get_y() + bar.get_height() / 2,
             f"{count:,}  ({pct:.1f}%)",
             va="center", ha="left", fontsize=9.5, fontweight="bold",
