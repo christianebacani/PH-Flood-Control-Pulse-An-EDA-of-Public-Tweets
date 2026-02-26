@@ -1,10 +1,9 @@
-from src.eda import extract_files_from_zipfile
-from src.eda import count_rows_and_columns
-from src.eda import get_column_names_and_dtypes
-from src.eda import display_first_few_rows
-from src.eda import get_null_count_per_column
-from src.eda import get_data_quality_for_tweets
-from src.eda import get_data_quality_for_authors
+from src.eda.extract import extract_files_from_zipfile
+from src.eda.dataset_shape import count_rows_and_columns
+from src.eda.datatype_distribution import get_column_names_and_dtypes
+from src.eda.missing_data_analysis import get_null_count_per_column
+from src.eda.data_quality_report import get_data_quality_for_authors
+from src.eda.data_quality_report import get_data_quality_for_tweets
 
 extract_files_from_zipfile("data/archive.zip")
 
@@ -22,14 +21,6 @@ twitter_users_columns_and_dtypes = get_column_names_and_dtypes(
 )
 flood_control_tweets_columns_and_dtypes = get_column_names_and_dtypes(
     "data/for_export_dpwh_floodcontrol.csv"
-)
-
-# Preview of first few rows
-twitter_users_preview = display_first_few_rows(
-    "data/well_known_authors_dpwh_floodcontrol.csv"
-)
-flood_control_tweets_preview = display_first_few_rows(
-    "data/for_export_dpwh_floodcontrol.csv"    
 )
 
 # Null count and null count percentage
