@@ -3,7 +3,8 @@ from src.eda import count_rows_and_columns
 from src.eda import get_column_names_and_dtypes
 from src.eda import display_first_few_rows
 from src.eda import get_null_count_per_column
-from src.eda import get_duplicates_count_per_column
+from src.eda import get_data_quality_for_tweets
+from src.eda import get_data_quality_for_authors
 
 extract_files_from_zipfile("data/archive.zip")
 
@@ -39,9 +40,10 @@ flood_control_tweets_null_count_per_column = get_null_count_per_column(
     "data/for_export_dpwh_floodcontrol.csv"
 )
 
-twitter_users_duplicates_count_per_column = get_duplicates_count_per_column(
+# Check data quality (duplicate values, inconsistent values, and missing data types)
+twitter_users_data_quality = get_data_quality_for_authors(
     "data/well_known_authors_dpwh_floodcontrol.csv"
 )
-flood_control_tweets_duplicates_count_per_column = get_duplicates_count_per_column(
-    "data/for_export_dpwh_floodcontrol.csv"
+flood_control_tweets_data_quality = get_data_quality_for_tweets(
+    "data/for_export_dpwh_floodcontrol.csv"    
 )
