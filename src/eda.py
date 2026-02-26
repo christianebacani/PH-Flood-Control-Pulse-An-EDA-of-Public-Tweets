@@ -792,8 +792,9 @@ def get_data_quality_for_tweets(
 
     for bar, count in zip(bars, values_ordered):
         pct = count / total_rows * 100
+        label_x = max(bar.get_width(), max_val * 0.05)
         ax_bar.text(
-            max_val * 0.02,
+            label_x + max_val * 0.02,
             bar.get_y() + bar.get_height() / 2,
             f"{count:,}  ({pct:.1f}%)",
             va="center", ha="left", fontsize=9.5, fontweight="bold",
