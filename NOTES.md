@@ -28,3 +28,8 @@ Imputation strategies:
         - If the the missing data is huge proportion and it is important then perform imputation
     - How much data is missing?
     - Do I know why the data is missing?
+
+---
+
+- TODO:
+    Let Claude AI check the output for the data quality report of both dataset using two functions `get_data_quality_for_authors` and `get_data_quality_for_twitter` and ask the LLM if that is the most recommended way to report and visualize the duplicate count, inconsistent values, and wrong datatype.
