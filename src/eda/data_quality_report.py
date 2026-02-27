@@ -325,16 +325,30 @@ def get_data_quality_for_tweets(
     ax_bar.tick_params(colors=TEXT_COLOR, length=0)
     ax_bar.set_xlabel("Tweet Count", fontsize=11, labelpad=8)
 
-    for bar, count in zip(bars, values_ordered):
+    xlim_max = max(values_ordered) * 1.35
+    for bar, count, lang in zip(bars, values_ordered, langs_ordered):
         pct = count / total_rows * 100
-        label_x = max(bar.get_width(), max_val * 0.05)
-        ax_bar.text(
-            label_x + max_val * 0.02,
-            bar.get_y() + bar.get_height() / 2,
-            f"{count:,}  ({pct:.1f}%)",
-            va="center", ha="left", fontsize=9.5, fontweight="bold",
-            color=TEXT_COLOR
-        )
+        label_text = f"{count:,}  ({pct:.1f}%)"
+        bar_end = bar.get_width()
+
+        if bar_end < xlim_max * 0.08:
+            # tiny bar — place label to the right at fixed readable position
+            ax_bar.text(
+                xlim_max * 0.08,
+                bar.get_y() + bar.get_height() / 2,
+                label_text,
+                va="center", ha="left", fontsize=9.5, fontweight="bold",
+                color=TEXT_COLOR
+                )
+        else:
+            # normal bar — place label just after bar end
+            ax_bar.text(
+                bar_end + xlim_max * 0.01,
+                bar.get_y() + bar.get_height() / 2,
+                label_text,
+                va="center", ha="left", fontsize=9.5, fontweight="bold",
+                color=TEXT_COLOR
+                )
 
     legend_items = [
         mpatches.Patch(color="#57CC99", label="Expected  (tl, en)"),
