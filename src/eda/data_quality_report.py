@@ -1,5 +1,5 @@
 """
-Data Quality Report v4 — Professional EDA Output
+Data Quality Report - Professional EDA Output
 ──────────────────────────────────────────────────
 Fixes:
   • Tight header — no dead space
