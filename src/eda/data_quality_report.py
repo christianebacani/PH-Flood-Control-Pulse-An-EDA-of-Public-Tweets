@@ -47,7 +47,7 @@ SEC = {
 # ── Layout (inches) ────────────────────────────────────────────────────────────
 FIG_W      = 15.0
 HDR_H      = 1.10   # title + subtitle + pills + padding
-SEC_HDR_H  = 0.40   # section label row
+SEC_HDR_H  = 0.46   # section label row
 COL_HDR_H  = 0.32   # "Column / Finding / Status" bar
 ROW_H      = 0.36   # main data row
 NOTE_H     = 0.22   # muted sub-note line (explanation)
@@ -115,17 +115,39 @@ def _render(title, subtitle, sections, pills):
 
     def Y(inch): return 1.0 - inch / fig_h
 
-    # ── Header — proportional to figure height so gap is consistent ───────────
-    # HDR_H is 12% of total figure height, minimum 0.90"
-    hdr_h = max(1.05, fig_h * 0.12)
+    # ── Header ────────────────────────────────────────────────────────────────
+    hdr_h = max(1.25, fig_h * 0.14)   # slightly taller, more breathing room
 
-    ax.text(0.5, Y(0.14), title, fontsize=13, fontweight="bold",
-            ha="center", va="top", color=TXT, transform=ax.transAxes)
-    ax.text(0.5, Y(0.32), subtitle, fontsize=8,
-            ha="center", va="top", color=TXT_MED, transform=ax.transAxes)
+    # Vertical rhythm inside header
+    title_y    = Y(hdr_h * 0.18)
+    subtitle_y = Y(hdr_h * 0.38)
+    pill_y     = Y(hdr_h * 0.68)
 
-    # Pills sit at 60% of hdr_h from the top
-    pill_y = Y(hdr_h * 0.62)
+    # Title
+    ax.text(0.5, title_y, title,
+            fontsize=14, fontweight="bold",
+            ha="center", va="top",
+            color=TXT, transform=ax.transAxes)
+
+    # Subtitle (lighter + smaller for hierarchy)
+    ax.text(0.5, subtitle_y, subtitle,
+            fontsize=8, color=TXT_MED,
+            ha="center", va="top",
+            transform=ax.transAxes)
+
+    # Pills (centered group)
+    pw = 0.185
+    px = 0.5 - pw * (len(pills) - 1) / 2
+    for j, (lbl, fg, bg, bd) in enumerate(pills):
+        ax.text(px + j * pw, pill_y, lbl,
+                fontsize=8.5, fontweight="bold",
+                ha="center", va="center",
+                color=fg,
+                transform=ax.transAxes,
+                bbox=dict(boxstyle="round,pad=0.38",
+                          facecolor=bg,
+                          edgecolor=bd,
+                          linewidth=1.1))
     pw = 0.185
     px = 0.5 - pw * (len(pills) - 1) / 2
     for j, (lbl, fg, bg, bd) in enumerate(pills):
@@ -137,7 +159,7 @@ def _render(title, subtitle, sections, pills):
                           edgecolor=bd, linewidth=1.1))
 
     # ── Sections ───────────────────────────────────────────────────────────────
-    cursor = hdr_h
+    cursor = hdr_h + 0.15   # add breathing space before first section
 
     for si, (sec_name, rows) in enumerate(sections):
         acc, sec_bg = SEC[sec_name]
