@@ -31,10 +31,10 @@ flood_control_tweets_null_count_per_column = get_null_count_per_column(
     "data/for_export_dpwh_floodcontrol.csv"
 )
 
-# Check data quality (duplicate values, inconsistent values, and missing data types)
-twitter_users_data_quality = get_data_quality_for_authors(
+# Data quality report (Duplicates, inconsistent values, and wrong datatypes)
+get_data_quality_for_authors(
     "data/well_known_authors_dpwh_floodcontrol.csv"
 )
-flood_control_tweets_data_quality = get_data_quality_for_tweets(
-    "data/for_export_dpwh_floodcontrol.csv"    
+get_data_quality_for_tweets(
+    "data/for_export_dpwh_floodcontrol.csv"
 )
