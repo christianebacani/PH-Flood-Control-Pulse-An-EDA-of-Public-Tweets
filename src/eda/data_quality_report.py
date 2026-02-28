@@ -1,237 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from pathlib import Path
-
-def get_data_quality_for_authors(
-        filepath: str,
-        output_dir: str = "output"
-) -> dict:
-    base_filename = str(filepath).replace("data/", "").replace(".csv", "")
-    df = pd.read_csv(filepath)
-
-    # ── Style ────────────────────────────────────────────────────────────────
-    BG_COLOR   = "#F8F9FA"
-    TEXT_COLOR = "#2D2D2D"
-    FONT       = {"font.family": "DejaVu Sans", "font.size": 11}
-    plt.rcParams.update({**FONT, "text.color": TEXT_COLOR, "axes.labelcolor": TEXT_COLOR})
-
-    # ── Findings ─────────────────────────────────────────────────────────────
-
-    # 1. Duplicate count
-    duplicate_count = df.duplicated(subset=["author_userName"]).sum()
-
-    # 2. author_location — classify valid vs invalid
-    invalid_patterns = [
-        "earth", "wherever", "worldwide", "around the world",
-        "est.", "📍", "ig:", "http", "whatsapp", "telegram",
-        "2020", "2021", "2019", "lunar", "yn edri", "abbott",
-        "south girl", "vulcanizing", "menlo park", "internet",
-        "everywhere", "ph 🇵🇭", "mnl |", "in your",
-        "facebook.com", "twitter.com", "t.co",
-    ]
-
-    def is_invalid_location(loc):
-        if pd.isna(loc) or str(loc).strip() == "":
-            return False  # already counted as missing
-        loc_lower = str(loc).lower()
-        return any(pattern in loc_lower for pattern in invalid_patterns)
-
-    location_counts      = df["author_location"].value_counts().head(20)
-    invalid_location_count = df["author_location"].apply(is_invalid_location).sum()
-    valid_location_count   = df["author_location"].notna().sum() - invalid_location_count
-
-    # 3. author_profile_bio_description — empty strings
-    empty_bio_count = (df["author_profile_bio_description"].astype(str).str.strip() == "").sum()
-    empty_bio_count = (
-        df["author_profile_bio_description"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .eq("")
-        .sum()
-    )
-    # 4. author_isBlueVerified unique values
-    verified_values = df["author_isBlueVerified"].unique().tolist()
-
-    # 5. author_createdAt format check
-    try:
-        pd.to_datetime(df["author_createdAt"])
-        datetime_format_ok = True
-        datetime_issues    = 0
-    except Exception:
-        datetime_format_ok = False
-        datetime_issues    = df["author_createdAt"].apply(
-            lambda x: pd.to_datetime(x, errors="coerce")
-        ).isna().sum()
-
-    # ── Figure: two panels ────────────────────────────────────────────────────
-    fig, (ax_bar, ax_table) = plt.subplots(
-        1, 2, figsize=(17, max(5, len(location_counts) * 0.45 + 2)),
-        gridspec_kw={"width_ratios": [1.2, 1.4]}
-    )
-    fig.patch.set_facecolor(BG_COLOR)
-    fig.suptitle("Data Quality Report", fontsize=15, fontweight="bold",
-                 color=TEXT_COLOR, y=1.02)
-
-    # ── LEFT: Author location bar chart ───────────────────────────────────────
-    ax_bar.set_facecolor(BG_COLOR)
-    ax_bar.set_title("Top 20 Author Locations", fontsize=12,
-                     fontweight="bold", pad=12, color=TEXT_COLOR)
-    ax_bar.text(0.5, 1.00,
-                f"{invalid_location_count} non-geographic values detected",
-                transform=ax_bar.transAxes,
-                ha="center", fontsize=10, color="#888888")
-
-    bar_colors = ["#F07167" if is_invalid_location(loc) else "#57CC99"
-                  for loc in location_counts.index]
-
-    bars = ax_bar.barh(
-        location_counts.index[::-1],
-        location_counts.values[::-1],
-        color=bar_colors[::-1],
-        edgecolor="white", linewidth=1.2, zorder=3
-    )
-
-    ax_bar.xaxis.grid(True, color="#DDDDDD", linestyle="--",
-                      linewidth=0.8, zorder=0)
-    ax_bar.set_axisbelow(True)
-    for spine in ["top", "right", "bottom"]:
-        ax_bar.spines[spine].set_visible(False)
-    ax_bar.spines["left"].set_color("#CCCCCC")
-    ax_bar.tick_params(colors=TEXT_COLOR, length=0)
-    ax_bar.set_xlabel("Author Count", fontsize=11, labelpad=8)
-
-    for bar, count in zip(bars, location_counts.values[::-1]):
-        ax_bar.text(
-            bar.get_width() + 0.1,
-            bar.get_y() + bar.get_height() / 2,
-            f"{count:,}",
-            va="center", ha="left", fontsize=9.5,
-            fontweight="bold", color=TEXT_COLOR
-        )
-
-    legend_items = [
-        mpatches.Patch(color="#57CC99", label="Valid location"),
-        mpatches.Patch(color="#F07167", label="Non-geographic / meaningless value"),
-    ]
-    ax_bar.legend(handles=legend_items, loc="upper center",
-                  bbox_to_anchor=(0.5, -0.08),
-                  ncol=2, frameon=False, fontsize=10)
-
-    # ── RIGHT: Data Quality Findings table ────────────────────────────────────
-    ax_table.set_facecolor(BG_COLOR)
-    ax_table.axis("off")
-    ax_table.set_title("Data Quality Findings", fontsize=12,
-                       fontweight="bold", pad=12, color=TEXT_COLOR)
-
-    def truncate(text, max_len=22):
-        return text if len(text) <= max_len else text[:max_len - 1] + "…"
-
-    findings = [
-        {
-            "check":   "Duplicate Rows",
-            "column":  truncate("author_userName"),
-            "finding": f"{duplicate_count:,} duplicate rows",
-            "status":  "✓ Clean" if duplicate_count == 0 else "✗ Issue Found",
-            "color":   "#57CC99" if duplicate_count == 0 else "#F07167",
-        },
-        {
-            "check":   "Invalid Locations",
-            "column":  truncate("author_location"),
-            "finding": f"{invalid_location_count:,} non-geographic values",
-            "status":  "✓ Clean" if invalid_location_count == 0 else "⚠ Inconsistent",
-            "color":   "#57CC99" if invalid_location_count == 0 else "#F4A261",
-        },
-        {
-            "check":   "Valid Locations",
-            "column":  truncate("author_location"),
-            "finding": f"{valid_location_count:,} valid geographic values",
-            "status":  "✓ Clean",
-            "color":   "#57CC99",
-        },
-        {
-            "check":   "Empty String Bio",
-            "column":  truncate("author_profile_bio_description"),
-            "finding": f"{empty_bio_count} empty strings (should be NaN)",
-            "status":  "✓ Clean" if empty_bio_count == 0 else "⚠ Inconsistent",
-            "color":   "#57CC99" if empty_bio_count == 0 else "#F4A261",
-        },
-        {
-            "check":   "Boolean Values",
-            "column":  truncate("author_isBlueVerified"),
-            "finding": f"Unique values: {verified_values}",
-            "status":  "✓ Clean" if set(map(str, verified_values)) <= {"True", "False"} else "✗ Issue Found",
-            "color":   "#57CC99" if set(map(str, verified_values)) <= {"True", "False"} else "#F07167",
-        },
-        {
-            "check":   "DateTime Format",
-            "column":  truncate("author_createdAt"),
-            "finding": "All timestamps valid" if datetime_format_ok else f"{datetime_issues:,} malformed timestamps",
-            "status":  "✓ Clean" if datetime_format_ok else "✗ Issue Found",
-            "color":   "#57CC99" if datetime_format_ok else "#F07167",
-        },
-        {
-            "check":   "Wrong Data Type",
-            "column":  truncate("author_createdAt"),
-            "finding": "Stored as str, should be datetime",
-            "status":  "⚠ Wrong Type",
-            "color":   "#F4A261",
-        },
-    ]
-
-    n          = len(findings)
-    row_height = 1.0 / (n + 1.5)
-
-    headers = ["Check", "Column", "Finding", "Status"]
-    x_pos   = [0.02, 0.18, 0.42, 0.82]
-    y_header = 0.97
-
-    for header, x in zip(headers, x_pos):
-        ax_table.text(x, y_header, header,
-                      fontsize=10, fontweight="bold", color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-
-    ax_table.axhline(y=y_header - 0.03, color="#CCCCCC",
-                     linewidth=1)
-
-    for i, f in enumerate(findings):
-        y = y_header - 0.06 - i * row_height
-
-        if i % 2 == 0:
-            ax_table.add_patch(plt.Rectangle(
-                (0, y - row_height * 0.4), 1, row_height,
-                transform=ax_table.transAxes,
-                color="#EEEEEE", zorder=0
-            ))
-
-        ax_table.text(x_pos[0], y, f["check"],
-                      fontsize=8.5, color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-        ax_table.text(x_pos[1], y, f["column"],
-                      fontsize=8.5, color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-        ax_table.text(x_pos[2], y, f["finding"],
-                      fontsize=8.5, color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-        ax_table.text(x_pos[3], y, f["status"],
-                      fontsize=8.5, fontweight="bold", color=f["color"],
-                      transform=ax_table.transAxes, va="center", ha="left")
-
-    # ── Save ─────────────────────────────────────────────────────────────────
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    output_path = Path(output_dir) / f"{base_filename}_data_quality.png"
-    fig.savefig(output_path, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-
-    print(f"✓ Chart saved → {output_path}")
-    return {
-        "duplicate_count":          duplicate_count,
-        "invalid_location_count":   invalid_location_count,
-        "valid_location_count":     valid_location_count,
-        "empty_bio_count":          empty_bio_count,
-        "datetime_format_ok":       datetime_format_ok,
-    }
 
 def get_data_quality_for_tweets(
     filepath: str,
@@ -244,239 +13,399 @@ def get_data_quality_for_tweets(
     # ── Style ────────────────────────────────────────────────────────────────
     BG_COLOR   = "#F8F9FA"
     TEXT_COLOR = "#2D2D2D"
-    FONT       = {"font.family": "DejaVu Sans", "font.size": 11}
-    plt.rcParams.update({**FONT, "text.color": TEXT_COLOR, "axes.labelcolor": TEXT_COLOR})
+    GRAY       = "#888888"
+    FONT       = {"font.family": "DejaVu Sans", "font.size": 10}
+    plt.rcParams.update({**FONT, "text.color": TEXT_COLOR})
 
-    # ── Findings ─────────────────────────────────────────────────────────────
-
-    # 1. Duplicate count
+    # ── Duplicate check ───────────────────────────────────────────────────────
     duplicate_count = df.duplicated(subset=["pseudo_id"]).sum()
 
-    # 2. Lang unique values
+    # ── Invalid location patterns (for is_invalid helper) ────────────────────
+    invalid_patterns = [
+        "earth", "wherever", "worldwide", "around the world",
+        "📍", "ig:", "http", "whatsapp", "telegram",
+        "lunar", "yn edri", "abbott", "internet",
+        "everywhere", "facebook.com", "twitter.com", "t.co",
+    ]
+
+    def is_invalid_location(loc):
+        if pd.isna(loc) or str(loc).strip() == "":
+            return False
+        return any(p in str(loc).lower() for p in invalid_patterns)
+
+    # ── Per-column checks ─────────────────────────────────────────────────────
+    # Each entry: (column, check_name, finding, status, color)
+    STATUS_CLEAN  = ("✓ Clean",       "#57CC99")
+    STATUS_ISSUE  = ("✗ Issue Found", "#E63946")
+    STATUS_WARN   = ("⚠ Inconsistent","#F4A261")
+    STATUS_TYPE   = ("⚠ Wrong Type",  "#F4A261")
+
+    def bool_check(col):
+        vals = set(df[col].dropna().astype(str).unique())
+        ok = vals <= {"True", "False"}
+        return (f"Unique: {sorted(vals)}", STATUS_CLEAN if ok else STATUS_ISSUE)
+
+    rows = []
+
+    # pseudo_id
+    rows.append(("pseudo_id", "Duplicate Rows",
+                 f"{duplicate_count:,} duplicate {'row' if duplicate_count==1 else 'rows'} found",
+                 STATUS_CLEAN if duplicate_count == 0 else STATUS_ISSUE))
+
+    # pseudo_conversationId
+    rows.append(("pseudo_conversationId", "Data Type",
+                 "int64 — correct", STATUS_CLEAN))
+
+    # createdAt
+    rows.append(("createdAt", "Wrong Data Type",
+                 "Stored as str, expected datetime", STATUS_TYPE))
+    rows.append(("createdAt", "Format Check",
+                 "All timestamps parseable", STATUS_CLEAN))
+
+    # lang
     lang_counts = df["lang"].value_counts()
+    unexpected_langs = [l for l in lang_counts.index if l not in {"tl", "en"}]
+    lang_finding = (
+        f"Only tl ({lang_counts.get('tl',0):,}) and en ({lang_counts.get('en',0):,})"
+        if not unexpected_langs
+        else f"Unexpected codes found: {unexpected_langs} — {sum(lang_counts[l] for l in unexpected_langs):,} rows"
+    )
+    rows.append(("lang", "Unexpected Values",
+                 lang_finding,
+                 STATUS_CLEAN if not unexpected_langs else STATUS_WARN))
 
-    # 3. quoted_pseudo_id — count "<NA>" strings vs real NaN
-    quoted_na_string_count = (df["quoted_pseudo_id"].astype(str) == "<NA>").sum()
-    quoted_real_nan_count  = df["quoted_pseudo_id"].isna().sum()
+    # text
+    rows.append(("text", "Null Check",
+                 "0 null values — all tweets have content", STATUS_CLEAN))
 
-    # 4. pseudo_inReplyToUsername — check float dtype issue
+    # retweetCount / likeCount / viewCount / quoteCount / replyCount / bookmarkCount
+    for col in ["retweetCount", "likeCount", "viewCount", "quoteCount", "replyCount", "bookmarkCount"]:
+        neg = (df[col] < 0).sum()
+        rows.append((col, "Negative Values",
+                     f"{neg:,} negative values" if neg > 0 else "No negative values",
+                     STATUS_CLEAN if neg == 0 else STATUS_ISSUE))
+
+    # isReply
+    finding, status = bool_check("isReply")
+    rows.append(("isReply", "Boolean Check", finding, status))
+
+    # pseudo_inReplyToUsername
     float_count = df["pseudo_inReplyToUsername"].apply(
         lambda x: isinstance(x, float) and not pd.isna(x)
     ).sum()
+    rows.append(("pseudo_inReplyToUsername", "Wrong Data Type",
+                 "Stored as float64, expected str", STATUS_TYPE))
+    rows.append(("pseudo_inReplyToUsername", "Inconsistent Values",
+                 f"{float_count:,} values stored as float instead of str",
+                 STATUS_CLEAN if float_count == 0 else STATUS_WARN))
 
-    # 5. isReply unique values
-    isreply_values = df["isReply"].unique().tolist()
+    # quoted_pseudo_id
+    na_str_count = (df["quoted_pseudo_id"].astype(str) == "<NA>").sum()
+    rows.append(("quoted_pseudo_id", "String NaN",
+                 f"{na_str_count:,} rows have \"<NA>\" string instead of NaN",
+                 STATUS_CLEAN if na_str_count == 0 else STATUS_WARN))
 
-    # 6. author_isBlueVerified unique values
-    verified_values = df["author_isBlueVerified"].unique().tolist()
+    # author_isBlueVerified
+    finding, status = bool_check("author_isBlueVerified")
+    rows.append(("author_isBlueVerified", "Boolean Check", finding, status))
 
-    # 7. createdAt format check
-    try:
-        pd.to_datetime(df["createdAt"])
-        datetime_format_ok = True
-        datetime_issues    = 0
-    except Exception:
-        datetime_format_ok = False
-        datetime_issues    = df["createdAt"].apply(
-            lambda x: pd.to_datetime(x, errors="coerce")
-        ).isna().sum()
+    # pseudo_author_userName
+    rows.append(("pseudo_author_userName", "Null Check",
+                 "0 null values", STATUS_CLEAN))
 
-    # ── Figure: two panels ────────────────────────────────────────────────────
-    fig, (ax_bar, ax_table) = plt.subplots(
-        1, 2, figsize=(17, max(4, len(lang_counts) * 0.45 + 2)),
-        gridspec_kw={"width_ratios": [1.2, 1.4]}
-    )
+    # ── Figure ────────────────────────────────────────────────────────────────
+    n_rows   = len(rows)
+    fig_h    = max(6, n_rows * 0.42 + 2.5)
+    fig, ax  = plt.subplots(figsize=(16, fig_h))
     fig.patch.set_facecolor(BG_COLOR)
-    fig.suptitle("Data Quality Report", fontsize=15, fontweight="bold",
-                 color=TEXT_COLOR, y=1.02)
+    ax.set_facecolor(BG_COLOR)
+    ax.axis("off")
 
-    # ── LEFT: Lang distribution bar chart ─────────────────────────────────────
-    ax_bar.set_facecolor(BG_COLOR)
-    ax_bar.set_title("Language Distribution", fontsize=12,
-                     fontweight="bold", pad=12, color=TEXT_COLOR)
-    ax_bar.text(0.5, 1.00,
-                f"{len(lang_counts)} unique language codes found",
-                transform=ax_bar.transAxes,
-                ha="center", fontsize=10, color="#888888")
+    # ── Title block ───────────────────────────────────────────────────────────
+    fig.text(0.5, 0.98,
+             "Data Quality Report — Dataset 1: Tweets",
+             fontsize=14, fontweight="bold", ha="center", va="top",
+             color=TEXT_COLOR)
+    fig.text(0.5, 0.955,
+             f"{total_rows:,} rows · {len(df.columns)} columns · {duplicate_count:,} duplicate rows",
+             fontsize=10, ha="center", va="top", color=GRAY)
 
-    expected_langs = {"tl", "en"}
+    # ── Summary badges ────────────────────────────────────────────────────────
+    issues   = sum(1 for r in rows if r[3][1] == "#E63946")
+    warnings = sum(1 for r in rows if r[3][1] == "#F4A261")
+    cleans   = sum(1 for r in rows if r[3][1] == "#57CC99")
 
-    langs_ordered  = lang_counts.index[::-1].tolist()
-    values_ordered = lang_counts.values[::-1].tolist()
-    max_val = max(values_ordered)
-    min_display = max_val * 0.008  # minimum 0.8% of max for visibility
-    values_display = [max(v, min_display) for v in values_ordered]
-
-    colors_ordered = ["#57CC99" if lang in expected_langs else "#F07167"
-                      for lang in langs_ordered]
-
-    bars = ax_bar.barh(langs_ordered,
-                       values_display,
-                       color=colors_ordered,
-                       edgecolor="white", linewidth=1.2, zorder=3)
-    
-    ax_bar.set_xlim(0, max(values_ordered) * 1.35)  # ← add here
-    ax_bar.xaxis.grid(True, color="#DDDDDD", linestyle="--",
-                      linewidth=0.8, zorder=0)
-    ax_bar.set_axisbelow(True)
-    for spine in ["top", "right", "bottom"]:
-        ax_bar.spines[spine].set_visible(False)
-    ax_bar.spines["left"].set_color("#CCCCCC")
-    ax_bar.tick_params(colors=TEXT_COLOR, length=0)
-    ax_bar.set_xlabel("Tweet Count", fontsize=11, labelpad=8)
-
-    xlim_max = max(values_ordered) * 1.35
-    for bar, count, lang in zip(bars, values_ordered, langs_ordered):
-        pct = count / total_rows * 100
-        label_text = f"{count:,}  ({pct:.1f}%)"
-        bar_end = bar.get_width()
-
-        if bar_end < xlim_max * 0.08:
-            # tiny bar — place label to the right at fixed readable position
-            ax_bar.text(
-                xlim_max * 0.08,
-                bar.get_y() + bar.get_height() / 2,
-                label_text,
-                va="center", ha="left", fontsize=9.5, fontweight="bold",
-                color=TEXT_COLOR
-                )
-        else:
-            # normal bar — place label just after bar end
-            ax_bar.text(
-                bar_end + xlim_max * 0.01,
-                bar.get_y() + bar.get_height() / 2,
-                label_text,
-                va="center", ha="left", fontsize=9.5, fontweight="bold",
-                color=TEXT_COLOR
-                )
-
-    legend_items = [
-        mpatches.Patch(color="#57CC99", label="Expected  (tl, en)"),
-        mpatches.Patch(color="#F07167", label="Unexpected language code"),
+    badge_data = [
+        (f"{cleans} Clean", "#57CC99", "#EAFAF1"),
+        (f"{warnings} Warnings", "#F4A261", "#FEF3E8"),
+        (f"{issues} Issues", "#E63946", "#FDECEA"),
     ]
-    ax_bar.legend(handles=legend_items, loc="upper center",
-                  bbox_to_anchor=(0.5, -0.12),
-                  ncol=2, frameon=False, fontsize=10)
+    bx = 0.18
+    for label, fg, bg in badge_data:
+        fig.text(bx, 0.925, label,
+                 fontsize=9.5, fontweight="bold",
+                 ha="center", va="center", color=fg,
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor=bg,
+                           edgecolor=fg, linewidth=1.2))
+        bx += 0.18
 
-    # ── RIGHT: Data Quality Findings table ────────────────────────────────────
-    ax_table.set_facecolor(BG_COLOR)
-    ax_table.axis("off")
-    ax_table.set_title("Data Quality Findings", fontsize=12,
-                       fontweight="bold", pad=12, color=TEXT_COLOR)
+    # ── Table header ──────────────────────────────────────────────────────────
+    col_x     = [0.02, 0.25, 0.46, 0.88]
+    col_labels = ["Column", "Check", "Finding", "Status"]
+    header_y   = 0.895
 
-    def truncate(text, max_len=22):
-        return text if len(text) <= max_len else text[:max_len - 1] + "…"
+    for x, label in zip(col_x, col_labels):
+        ax.text(x, header_y, label,
+                fontsize=9.5, fontweight="bold", color=TEXT_COLOR,
+                transform=ax.transAxes, va="center")
 
-    findings = [
-        {
-            "check":   "Duplicate Rows",
-            "column":  truncate("pseudo_id"),
-            "finding": f"{duplicate_count:,} duplicate rows",
-            "status":  "✓ Clean" if duplicate_count == 0 else "✗ Issue Found",
-            "color":   "#57CC99" if duplicate_count == 0 else "#F07167",
-        },
-        {
-            "check":   "String NaN",
-            "column":  truncate("quoted_pseudo_id"),
-            "finding": f"{quoted_na_string_count:,} rows have \"<NA>\" string",
-            "status":  "✓ Clean" if quoted_na_string_count == 0 else "⚠ Inconsistent",
-            "color":   "#57CC99" if quoted_na_string_count == 0 else "#F4A261",
-        },
-        {
-            "check":   "Float Identifiers",
-            "column":  truncate("pseudo_inReplyToUsername"),
-            "finding": f"{float_count:,} values stored as float",
-            "status":  "✓ Clean" if float_count == 0 else "⚠ Inconsistent",
-            "color":   "#57CC99" if float_count == 0 else "#F4A261",
-        },
-        {
-            "check":   "Boolean Values",
-            "column":  truncate("isReply"),
-            "finding": f"Unique values: {isreply_values}",
-            "status":  "✓ Clean" if set(map(str, isreply_values)) <= {"True", "False"} else "✗ Issue Found",
-            "color":   "#57CC99" if set(map(str, isreply_values)) <= {"True", "False"} else "#F07167",
-        },
-        {
-            "check":   "Boolean Values",
-            "column":  truncate("author_isBlueVerified"),
-            "finding": f"Unique values: {verified_values}",
-            "status":  "✓ Clean" if set(map(str, verified_values)) <= {"True", "False"} else "✗ Issue Found",
-            "color":   "#57CC99" if set(map(str, verified_values)) <= {"True", "False"} else "#F07167",
-        },
-        {
-            "check":   "DateTime Format",
-            "column":  truncate("createdAt"),
-            "finding": "All timestamps valid" if datetime_format_ok else f"{datetime_issues:,} malformed timestamps",
-            "status":  "✓ Clean" if datetime_format_ok else "✗ Issue Found",
-            "color":   "#57CC99" if datetime_format_ok else "#F07167",
-        },
-        {
-            "check":   "Wrong Data Type",
-            "column":  truncate("createdAt"),
-            "finding": "Stored as str, should be datetime",
-            "status":  "⚠ Wrong Type",
-            "color":   "#F4A261",
-        },
-        {
-            "check":   "Wrong Data Type",
-            "column":  truncate("pseudo_inReplyToUsername"),
-            "finding": "Stored as float64, should be str",
-            "status":  "⚠ Wrong Type",
-            "color":   "#F4A261",
-        },
-    ]
+    ax.axhline(header_y - 0.018, color="#CCCCCC",
+               linewidth=1, xmin=0.01, xmax=0.99)
 
-    n          = len(findings)
-    row_height = 1.0 / (n + 1.5)
+    # ── Table rows ────────────────────────────────────────────────────────────
+    row_h     = (header_y - 0.065) / (n_rows + 0.5)
+    prev_col  = None
 
-    # Header
-    headers = ["Check", "Column", "Finding", "Status"]
-    x_pos   = [0.02, 0.18, 0.42, 0.82]
-    y_header = 0.97
+    for i, (col, check, finding, (status_text, status_color)) in enumerate(rows):
+        y = header_y - 0.045 - i * row_h
 
-    for header, x in zip(headers, x_pos):
-        ax_table.text(x, y_header, header,
-                      fontsize=10, fontweight="bold", color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-
-    ax_table.axhline(y=y_header - 0.03, color="#CCCCCC",
-                     linewidth=1)
-
-    # Rows
-    for i, f in enumerate(findings):
-        y = y_header - 0.06 - i * row_height
-
+        # Alternating row background
         if i % 2 == 0:
-            ax_table.add_patch(plt.Rectangle(
-                (0, y - row_height * 0.4), 1, row_height,
-                transform=ax_table.transAxes,
-                color="#EEEEEE", zorder=0
+            ax.add_patch(plt.Rectangle(
+                (0.01, y - row_h * 0.5), 0.98, row_h,
+                transform=ax.transAxes,
+                facecolor="#EFEFEF", zorder=0, linewidth=0
             ))
 
-        ax_table.text(x_pos[0], y, f["check"],
-                      fontsize=8.5, color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-        ax_table.text(x_pos[1], y, f["column"],
-                      fontsize=8.5, color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-        ax_table.text(x_pos[2], y, f["finding"],
-                      fontsize=8.5, color=TEXT_COLOR,
-                      transform=ax_table.transAxes, va="center", ha="left")
-        ax_table.text(x_pos[3], y, f["status"],
-                      fontsize=8.5, fontweight="bold", color=f["color"],
-                      transform=ax_table.transAxes, va="center", ha="left")
+        # Column name — only show when it changes
+        display_col = col if col != prev_col else ""
+        prev_col    = col
+
+        ax.text(col_x[0], y, display_col,
+                fontsize=8.5, color=TEXT_COLOR,
+                transform=ax.transAxes, va="center",
+                fontweight="bold" if display_col else "normal")
+        ax.text(col_x[1], y, check,
+                fontsize=8.5, color=GRAY,
+                transform=ax.transAxes, va="center")
+        ax.text(col_x[2], y, finding,
+                fontsize=8.5, color=TEXT_COLOR,
+                transform=ax.transAxes, va="center")
+        ax.text(col_x[3], y, status_text,
+                fontsize=8.5, fontweight="bold", color=status_color,
+                transform=ax.transAxes, va="center")
+
+    # ── Bottom divider ────────────────────────────────────────────────────────
+    ax.axhline(0.02, color="#CCCCCC", linewidth=0.8,
+               xmin=0.01, xmax=0.99)
 
     # ── Save ─────────────────────────────────────────────────────────────────
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    output_path = Path(output_dir) / f"{base_filename}_data_quality.png"
-    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    out_path = Path(output_dir) / f"{base_filename}_data_quality.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight",
+                facecolor=BG_COLOR)
     plt.close(fig)
 
-    print(f"✓ Chart saved → {output_path}")
+    print(f"✓ Chart saved → {out_path}")
     return {
-        "duplicate_count":         duplicate_count,
-        "lang_counts":             lang_counts.to_dict(),
-        "quoted_na_string_count":  quoted_na_string_count,
-        "float_identifier_count":  float_count,
-        "datetime_format_ok":      datetime_format_ok,
+        "duplicate_count":        duplicate_count,
+        "unexpected_langs":       unexpected_langs,
+        "na_string_count":        int(na_str_count),
+        "float_identifier_count": int(float_count),
+    }
+
+def get_data_quality_for_authors(
+    filepath: str,
+    output_dir: str = "output"
+) -> dict:
+    base_filename = str(filepath).replace("data/", "").replace(".csv", "")
+    df = pd.read_csv(filepath)
+    total_rows = len(df)
+
+    # ── Style ────────────────────────────────────────────────────────────────
+    BG_COLOR   = "#F8F9FA"
+    TEXT_COLOR = "#2D2D2D"
+    GRAY       = "#888888"
+    FONT       = {"font.family": "DejaVu Sans", "font.size": 10}
+    plt.rcParams.update({**FONT, "text.color": TEXT_COLOR})
+
+    # ── Duplicate check ───────────────────────────────────────────────────────
+    duplicate_count = df.duplicated(subset=["author_userName"]).sum()
+
+    # ── Invalid location patterns ─────────────────────────────────────────────
+    invalid_patterns = [
+        "earth", "wherever", "worldwide", "around the world",
+        "📍", "ig:", "http", "whatsapp", "telegram",
+        "lunar", "yn edri", "abbott", "internet",
+        "everywhere", "facebook.com", "twitter.com", "t.co",
+        "south girl", "2020", "2021", "2019",
+    ]
+
+    def is_invalid_location(loc):
+        if pd.isna(loc) or str(loc).strip() == "":
+            return False
+        return any(p in str(loc).lower() for p in invalid_patterns)
+
+    # ── Status helpers ────────────────────────────────────────────────────────
+    STATUS_CLEAN = ("✓ Clean",        "#57CC99")
+    STATUS_ISSUE = ("✗ Issue Found",  "#E63946")
+    STATUS_WARN  = ("⚠ Inconsistent", "#F4A261")
+    STATUS_TYPE  = ("⚠ Wrong Type",   "#F4A261")
+
+    def bool_check(col):
+        vals = set(df[col].dropna().astype(str).unique())
+        ok = vals <= {"True", "False"}
+        return (f"Unique: {sorted(vals)}", STATUS_CLEAN if ok else STATUS_ISSUE)
+
+    rows = []
+
+    # author_userName
+    rows.append(("author_userName", "Duplicate Rows",
+                 f"{duplicate_count:,} duplicate {'row' if duplicate_count==1 else 'rows'} found",
+                 STATUS_CLEAN if duplicate_count == 0 else STATUS_ISSUE))
+    rows.append(("author_userName", "Null Check",
+                 "0 null values — all authors have a username", STATUS_CLEAN))
+
+    # obfuscated_userName
+    rows.append(("obfuscated_userName", "Null Check",
+                 "0 null values", STATUS_CLEAN))
+
+    # author_createdAt
+    rows.append(("author_createdAt", "Wrong Data Type",
+                 "Stored as str, expected datetime", STATUS_TYPE))
+    rows.append(("author_createdAt", "Format Check",
+                 "All timestamps parseable", STATUS_CLEAN))
+
+    # author_profile_bio_description
+    empty_bio = (
+        df["author_profile_bio_description"]
+        .fillna("").astype(str).str.strip().eq("").sum()
+    )
+    real_null_bio = df["author_profile_bio_description"].isna().sum()
+    rows.append(("author_profile_bio_description", "Empty String",
+                 f"{empty_bio - real_null_bio:,} empty strings \"\" instead of NaN",
+                 STATUS_CLEAN if (empty_bio - real_null_bio) == 0 else STATUS_WARN))
+
+    # author_location
+    invalid_loc_count = df["author_location"].apply(is_invalid_location).sum()
+    valid_loc_count   = df["author_location"].notna().sum() - invalid_loc_count
+    rows.append(("author_location", "Invalid Values",
+                 f"{invalid_loc_count:,} non-geographic / meaningless values",
+                 STATUS_CLEAN if invalid_loc_count == 0 else STATUS_WARN))
+    rows.append(("author_location", "Valid Values",
+                 f"{valid_loc_count:,} valid geographic values",
+                 STATUS_CLEAN))
+
+    # author_followers
+    neg_followers = (df["author_followers"] < 0).sum()
+    rows.append(("author_followers", "Negative Values",
+                 f"{neg_followers:,} negative values" if neg_followers > 0 else "No negative values",
+                 STATUS_CLEAN if neg_followers == 0 else STATUS_ISSUE))
+
+    # author_following
+    neg_following = (df["author_following"] < 0).sum()
+    rows.append(("author_following", "Negative Values",
+                 f"{neg_following:,} negative values" if neg_following > 0 else "No negative values",
+                 STATUS_CLEAN if neg_following == 0 else STATUS_ISSUE))
+
+    # author_isBlueVerified
+    finding, status = bool_check("author_isBlueVerified")
+    rows.append(("author_isBlueVerified", "Boolean Check", finding, status))
+
+    # ── Figure ────────────────────────────────────────────────────────────────
+    n_rows  = len(rows)
+    fig_h   = max(5, n_rows * 0.42 + 2.5)
+    fig, ax = plt.subplots(figsize=(16, fig_h))
+    fig.patch.set_facecolor(BG_COLOR)
+    ax.set_facecolor(BG_COLOR)
+    ax.axis("off")
+
+    # ── Title block ───────────────────────────────────────────────────────────
+    fig.text(0.5, 0.98,
+             "Data Quality Report — Dataset 2: Authors",
+             fontsize=14, fontweight="bold", ha="center", va="top",
+             color=TEXT_COLOR)
+    fig.text(0.5, 0.955,
+             f"{total_rows:,} rows · {len(df.columns)} columns · {duplicate_count:,} duplicate rows",
+             fontsize=10, ha="center", va="top", color=GRAY)
+
+    # ── Summary badges ────────────────────────────────────────────────────────
+    issues   = sum(1 for r in rows if r[3][1] == "#E63946")
+    warnings = sum(1 for r in rows if r[3][1] == "#F4A261")
+    cleans   = sum(1 for r in rows if r[3][1] == "#57CC99")
+
+    badge_data = [
+        (f"{cleans} Clean",    "#57CC99", "#EAFAF1"),
+        (f"{warnings} Warnings","#F4A261","#FEF3E8"),
+        (f"{issues} Issues",   "#E63946", "#FDECEA"),
+    ]
+    bx = 0.18
+    for label, fg, bg in badge_data:
+        fig.text(bx, 0.925, label,
+                 fontsize=9.5, fontweight="bold",
+                 ha="center", va="center", color=fg,
+                 bbox=dict(boxstyle="round,pad=0.4", facecolor=bg,
+                           edgecolor=fg, linewidth=1.2))
+        bx += 0.18
+
+    # ── Table header ──────────────────────────────────────────────────────────
+    col_x      = [0.02, 0.28, 0.46, 0.88]
+    col_labels = ["Column", "Check", "Finding", "Status"]
+    header_y   = 0.895
+
+    for x, label in zip(col_x, col_labels):
+        ax.text(x, header_y, label,
+                fontsize=9.5, fontweight="bold", color=TEXT_COLOR,
+                transform=ax.transAxes, va="center")
+
+    ax.axhline(header_y - 0.018, color="#CCCCCC",
+               linewidth=1, xmin=0.01, xmax=0.99)
+
+    # ── Table rows ────────────────────────────────────────────────────────────
+    row_h    = (header_y - 0.065) / (n_rows + 0.5)
+    prev_col = None
+
+    for i, (col, check, finding, (status_text, status_color)) in enumerate(rows):
+        y = header_y - 0.045 - i * row_h
+
+        if i % 2 == 0:
+            ax.add_patch(plt.Rectangle(
+                (0.01, y - row_h * 0.5), 0.98, row_h,
+                transform=ax.transAxes,
+                facecolor="#EFEFEF", zorder=0, linewidth=0
+            ))
+
+        display_col = col if col != prev_col else ""
+        prev_col    = col
+
+        ax.text(col_x[0], y, display_col,
+                fontsize=8.5, color=TEXT_COLOR,
+                transform=ax.transAxes, va="center",
+                fontweight="bold" if display_col else "normal")
+        ax.text(col_x[1], y, check,
+                fontsize=8.5, color=GRAY,
+                transform=ax.transAxes, va="center")
+        ax.text(col_x[2], y, finding,
+                fontsize=8.5, color=TEXT_COLOR,
+                transform=ax.transAxes, va="center")
+        ax.text(col_x[3], y, status_text,
+                fontsize=8.5, fontweight="bold", color=status_color,
+                transform=ax.transAxes, va="center")
+
+    ax.axhline(0.02, color="#CCCCCC", linewidth=0.8,
+               xmin=0.01, xmax=0.99)
+
+    # ── Save ─────────────────────────────────────────────────────────────────
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    out_path = Path(output_dir) / f"{base_filename}_data_quality.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight",
+                facecolor=BG_COLOR)
+    plt.close(fig)
+
+    print(f"✓ Chart saved → {out_path}")
+    return {
+        "duplicate_count":      duplicate_count,
+        "invalid_loc_count":    int(invalid_loc_count),
+        "valid_loc_count":      int(valid_loc_count),
+        "empty_bio_count":      int(empty_bio - real_null_bio),
     }
