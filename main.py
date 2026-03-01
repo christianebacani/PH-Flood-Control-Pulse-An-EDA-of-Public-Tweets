@@ -4,7 +4,6 @@ from src.eda.datatype_distribution import get_column_names_and_dtypes
 from src.eda.missing_data_analysis import get_null_count_per_column
 from src.eda.data_quality_report import get_data_quality_for_authors
 from src.eda.data_quality_report import get_data_quality_for_tweets
-from src.eda.univariate_analysis import summary_statistics
 
 extract_files_from_zipfile("data/archive.zip")
 
@@ -38,9 +37,4 @@ get_data_quality_for_authors(
 )
 get_data_quality_for_tweets(
     "data/for_export_dpwh_floodcontrol.csv"
-)
-
-# Univariate analysis
-summary_statistics(
-    "data/well_known_authors_dpwh_floodcontrol.csv"
 )
