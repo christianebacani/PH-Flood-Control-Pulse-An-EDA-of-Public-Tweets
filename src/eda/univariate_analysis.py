@@ -11,6 +11,9 @@ def summary_statistics(filepath: str):
             author_createdAt = df["author_createdAt"]
             column_and_values["author_createdAt"] = author_createdAt
 
-    for key, value in column_and_values.items():
-        print(key)
-        print(value)
+    year_periods = {}
+
+    for value in column_and_values["author_createdAt"]:
+        year = str(value).split("-")[0]
+        year = year.strip()
+        year_periods[year] = []
