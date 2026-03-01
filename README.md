@@ -21,9 +21,7 @@ Each dataset is examined across four steps: **shape → schema → missing data 
 
 ![Dataset Shape](output/for_export_dpwh_floodcontrol_dataset_shape.png)
 
-Nearly **200,000 tweets** collected from a focused set of well-known accounts. That's large enough to find meaningful patterns in engagement, language use, and temporal trends — but small enough to process without heavy infrastructure.
-
-At **16 columns**, each tweet carries rich metadata beyond just the text: who wrote it, when, how many people saw it, liked it, retweeted it, replied to it, bookmarked it, and whether it was a reply or a quote tweet.
+**195,744 tweets · 16 columns.** Each tweet carries the full picture: the text itself, when it was posted, engagement counts (views, likes, retweets, replies, quotes, bookmarks), the language it was written in, and whether it was a reply or a quote tweet.
 
 ---
 
@@ -31,30 +29,7 @@ At **16 columns**, each tweet carries rich metadata beyond just the text: who wr
 
 ![Column Names and Data Types](output/for_export_dpwh_floodcontrol_column_names_and_dtypes.png)
 
-Most columns are numbers — specifically the engagement metrics. Here's a plain-English breakdown of the full schema:
-
-| Column | Type | What it means |
-|---|---|---|
-| `pseudo_id` | `int64` | Unique identifier for each tweet |
-| `text` | `str` | The tweet content |
-| `retweetCount` | `int64` | How many times it was retweeted |
-| `replyCount` | `int64` | How many replies it received |
-| `likeCount` | `int64` | How many likes it received |
-| `quoteCount` | `int64` | How many times it was quote-tweeted |
-| `viewCount` | `int64` | How many times it was seen |
-| `bookmarkCount` | `int64` | How many times it was bookmarked |
-| `createdAt` | `str` ⚠️ | When the tweet was posted — stored as text, should be a date |
-| `lang` | `str` | Language of the tweet (`tl` = Filipino, `en` = English) |
-| `isReply` | `bool` ⚠️ | Whether this tweet is a reply to another tweet |
-| `pseudo_conversationId` | `int64` | Groups tweets in the same thread |
-| `pseudo_inReplyToUsername` | `float64` ⚠️ | The user being replied to — stored incorrectly as a number |
-| `pseudo_author_userName` | `int64` | The tweet author (as an obfuscated ID) |
-| `quoted_pseudo_id` | `float64` | The ID of the tweet being quoted (empty if not a quote tweet) |
-| `author_isBlueVerified` | `bool` ⚠️ | Whether the author has Twitter Blue verification |
-
-> ⚠️ = columns with a type issue that needs fixing before analysis. Covered in Section 1.4.
-
-**dtype summary:** 9 `int64` · 3 `str` · 2 `float64` · 2 `bool`
+The schema is dominated by **9 `int64` engagement metrics** (retweetCount, likeCount, viewCount, etc.), plus **3 `str`** text columns, **2 `float64`** identifier fields, and **2 `bool`** flags. Four columns have type issues that need fixing before analysis — marked ⚠️ in the chart and addressed in Section 1.4.
 
 ---
 
@@ -66,15 +41,15 @@ Most columns are numbers — specifically the engagement metrics. Here's a plain
 
 This is important to understand before jumping to "clean the data." Not all missing values are mistakes. In this dataset, the two missing columns are empty *by design*, not by accident.
 
-#### `quoted_pseudo_id` — 170,346 missing (87%)
+#### `quoted_pseudo_id` — 170,346 missing (87%) · `Structurally Missing`
 
 A "quoted tweet ID" only exists if a tweet is quoting another tweet. If someone just posts an original thought, there's nothing to quote — so this field is empty. **87% of tweets are original posts, not quote tweets.** That's not a data problem; that's just how Twitter works.
 
 > **Decision: Keep as-is.** The empty value *is* the information — it tells us the tweet is original. Filling it would be wrong. Removing those rows would delete 87% of the dataset.
 
-#### `pseudo_inReplyToUsername` — 123,213 missing (62.9%)
+#### `pseudo_inReplyToUsername` — 123,213 missing (62.9%) · `Missing At Random (MAR)`
 
-Similarly, a "reply-to username" only exists if the tweet is a reply. When `isReply = False`, this column is always empty. When `isReply = True`, it is always filled. The two columns move perfectly in sync.
+Similarly, a "reply-to username" only exists if the tweet is a reply. When `isReply = False`, this column is always empty. When `isReply = True`, it is always filled. The two columns move perfectly in sync. Because the missingness is fully explained by another column we can observe (`isReply`), this is classified as **MAR** — the data isn't missing randomly, but the reason is known and measurable.
 
 > **Decision: Keep as-is.** The missing values are fully explained by `isReply`. No imputation needed. Removing these rows would eliminate every original tweet in the dataset.
 
@@ -140,7 +115,7 @@ This is a direct consequence of the dtype issue above. Once the column is proper
 
 ![Dataset Shape](output/well_known_authors_dpwh_floodcontrol_dataset_shape.png)
 
-Just **227 authors** drove nearly 200,000 tweets. That's a remarkably small and focused group — an average of roughly 860 tweets per author. This is not a random sample of Twitter; it's a curated set of accounts that Twitter's algorithm or the researcher identified as influential voices on this topic.
+**227 authors · 8 columns.** Just 227 accounts drove nearly 200,000 tweets — a small, curated group of influential voices, not a random sample of Twitter.
 
 ---
 
@@ -148,22 +123,7 @@ Just **227 authors** drove nearly 200,000 tweets. That's a remarkably small and 
 
 ![Column Names and Data Types](output/well_known_authors_dpwh_floodcontrol_column_names_and_dtypes.png)
 
-The author dataset is simpler — 8 columns covering identity, reach, and a bit of context about who these accounts are.
-
-| Column | Type | What it means |
-|---|---|---|
-| `author_userName` | `str` | The Twitter handle (e.g. `@ABSCBNNews`) |
-| `author_createdAt` | `str` ⚠️ | When the account was created — stored as text, should be a date |
-| `obfuscated_userName` | `str` | An anonymised version of the username |
-| `author_profile_bio_description` | `str` | The author's Twitter bio |
-| `author_location` | `str` | Self-reported location — unreliable (see Section 2.3) |
-| `author_followers` | `int64` | Number of followers |
-| `author_following` | `int64` | Number of accounts they follow |
-| `author_isBlueVerified` | `bool` ⚠️ | Whether the author has Twitter Blue verification |
-
-> ⚠️ = columns with a type issue. Covered in Section 2.4.
-
-**dtype summary:** 5 `str` · 2 `int64` · 1 `bool`
+**5 `str`** columns cover identity, bio, location, and timestamps. **2 `int64`** columns capture follower and following counts. **1 `bool`** column records Blue verification status. Two columns have type issues — `author_createdAt` and `author_isBlueVerified` — addressed in Section 2.4.
 
 ---
 
@@ -171,21 +131,19 @@ The author dataset is simpler — 8 columns covering identity, reach, and a bit 
 
 ![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
 
-**2 of 8 columns have missing values — and in both cases, the user chose not to fill them in.**
+**2 of 8 columns have missing values — both are Missing Not At Random (MNAR).** Unlike the tweets dataset where missing values were structural, here the information *could* exist but the author chose not to share it. In data science, when the reason something is missing depends on the person's own decision — not on other columns we can measure — it's called MNAR.
 
-This is different from the tweets dataset. Here, the missing values aren't structural — the information *could* exist, but the author decided not to share it. In data science, this is called **Missing Not At Random (MNAR)**: the fact that it's missing tells you something about the person (they value privacy, or they didn't bother).
+#### `author_location` — 40 missing (17.6%) · `MNAR`
 
-#### `author_location` — 40 missing (17.6%)
+Twitter's location field is self-reported and optional. 40 authors left it blank by choice.
 
-Twitter's location field is self-reported and completely optional. 40 authors (17.6%) left it blank. And among those who did fill it in, some entries are not real locations — we'll cover that in Section 2.4.
+> **Decision: Retain; fill with `"Unknown"`.** We can't meaningfully guess someone's location, and removing these rows would lose the author's engagement data too.
 
-> **Decision: Retain; fill blank values with `"Unknown"`.** Filling with a placeholder keeps the row in the dataset for other analysis (engagement, follower counts, etc.) while clearly marking that location data is unavailable. We can't meaningfully guess someone's location.
+#### `author_profile_bio_description` — 6 missing (2.6%) · `MNAR`
 
-#### `author_profile_bio_description` — 6 missing (2.6%)
+6 authors chose not to write a bio — a deliberate omission, not a collection failure.
 
-6 authors left their bio blank. This is a minor gap and only affects text-based analysis of author profiles.
-
-> **Decision: Retain; fill blank values with `"No bio provided"`.** Only 6 rows are affected. The bio is descriptive and non-critical — a placeholder is appropriate.
+> **Decision: Retain; fill with `"No bio provided"`.** Only 6 rows affected. Bio is non-critical; a placeholder is appropriate.
 
 **The other 6 columns are fully complete.** No rows need to be removed.
 
