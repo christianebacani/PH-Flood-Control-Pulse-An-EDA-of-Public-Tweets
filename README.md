@@ -34,6 +34,28 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 >
 > No rows need to be removed. The remaining **14 columns are clean** with 0% missing values.
 
+### 1.4 Data Quality Report
+
+![Data Quality Report](output/for_export_dpwh_floodcontrol_data_quality.png)
+
+> **1 issue** and **6 warnings** were identified across three categories.
+>
+> **Duplicate Rows**
+> - `pseudo_id` has **1 duplicate row** (0.0005%) — likely a scraping overlap. Impact is negligible but the row should be dropped before analysis.
+>
+> **Wrong Data Types**
+>
+> | Column | Current | Expected | Action |
+> |---|---|---|---|
+> | `createdAt` | `str / object` | `datetime64` | Parse with `pd.to_datetime()` before any temporal analysis |
+> | `isReply` | `bool / str` | `bool` | Normalise mixed serialisation to uniform `bool` before filtering |
+> | `pseudo_inReplyToUsername` | `float64` | `str / object` | Cast to `str` — IDs were coerced to float due to NaN presence |
+> | `author_isBlueVerified` | `bool / str` | `bool` | Normalise mixed serialisation to uniform `bool` before aggregation |
+>
+> **Inconsistent Values**
+> - `lang` has **410 rows (0.21%)** with unexpected code `'und'` (undetermined by Twitter). Only `'tl'` and `'en'` are expected. These rows should be excluded or grouped as `'other'` in language-based analysis.
+> - `pseudo_inReplyToUsername` has **72,531 non-null values (37.05%)** stored as `float64` instead of `str`. Non-reply rows are `NaN`; reply rows must be cast to `str` before use to avoid losing identifier precision.
+
 ---
 
 ## Dataset 2: Well Known Authors (DPWH Flood Control)
@@ -66,4 +88,18 @@ This project provides Exploratory Data Analysis for [public tweets of well-known
 >
 > No rows need to be removed. The remaining **6 columns are clean** with 0% missing values.
 
----
+### 2.4 Data Quality Report
+
+![Data Quality Report](output/well_known_authors_dpwh_floodcontrol_data_quality.png)
+
+> **0 issues** and **3 warnings** were identified across two categories.
+>
+> **Wrong Data Types**
+>
+> | Column | Current | Expected | Action |
+> |---|---|---|---|
+> | `author_createdAt` | `str / object` | `datetime64` | Parse with `pd.to_datetime()` before computing account age or temporal groupings |
+> | `author_isBlueVerified` | `bool / str` | `bool` | Normalise mixed serialisation to uniform `bool` before any groupby or filtering |
+>
+> **Inconsistent Values**
+> - `author_location` has **16 non-geographic values (7.05%)** — entries include platform handles, URLs, and colloquialisms such as `"Earth"`, `"Around The World"`, `"facebook.com/aidelacruzonline"`, `"Abbott Elementary"`, and `"WhatsApp & Telegram"`. These should be excluded or recoded as `"Unknown"` before any geographic analysis.
