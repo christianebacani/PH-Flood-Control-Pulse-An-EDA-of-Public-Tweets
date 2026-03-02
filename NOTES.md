@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Check the new output of the module "src/eda/univariate_analysis" and let the LLM using chatgpt handle if it's good or not
+    - Check the new output of the module "src/eda/univariate_analysis" and let the LLM using chatgpt handle if it's good or not from the conversation with a name of "Portfolio-Ready Analysis Fixes"
