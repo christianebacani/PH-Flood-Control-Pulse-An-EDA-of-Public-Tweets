@@ -301,106 +301,7 @@ def _save(fig, out_dir, filename):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Dataset 1 — Tweets
-# ─────────────────────────────────────────────────────────────────────────────
-def get_data_quality_for_tweets(filepath: str):
-    df = pd.read_csv(filepath); N = len(df)
-    output_dir = "output"
-
-    # Duplicates
-    dup = int(df.duplicated(subset=["pseudo_id"]).sum())
-
-    # Inconsistent
-    lc       = df["lang"].value_counts()
-    bad_lang = [l for l in lc.index if l not in {"tl","en"}]
-    bad_n    = int(sum(lc[l] for l in bad_lang))
-    lang_bd  = [(f"'{k}'", f"{int(lc[k]):,} rows  ({_pct(int(lc[k]),N)})")
-                for k in lc.index][:6]
-
-    float_n  = int(df["pseudo_inReplyToUsername"].apply(
-        lambda x: isinstance(x, float) and not pd.isna(x)).sum())
-
-    # Build sections
-    dup_rows = []
-    if dup:
-        dup_rows.append({
-            "col":     "pseudo_id",
-            "finding": f"{dup:,} duplicate {'row' if dup==1 else 'rows'}",
-            "note":    f"{_pct(dup,N)} of total dataset — likely a scraping overlap",
-            "status":  ("✗  Issue Found", C_RED),
-        })
-
-    dtype_rows = [
-        {"col": "createdAt",              "finding": "Stored as",
-         "dtype": ("str / object", "datetime64"),
-         "note": "Timestamps need parsing before any temporal analysis",
-         "status": ("⚠  Wrong Type", C_ORANGE)},
-
-        {"col": "isReply",                "finding": "Stored as",
-         "dtype": ("bool / str", "bool"),
-         "note": "Mixed serialisation — normalise to uniform bool before filtering",
-         "status": ("⚠  Wrong Type", C_ORANGE)},
-
-        {"col": "pseudo_inReplyToUsername","finding": "Stored as",
-         "dtype": ("float64", "str / object"),
-         "note": "IDs cast to float when NaNs present — loses leading-zero safety",
-         "status": ("⚠  Wrong Type", C_ORANGE)},
-
-        {"col": "author_isBlueVerified",  "finding": "Stored as",
-         "dtype": ("bool / str", "bool"),
-         "note": "Mixed serialisation — normalise to uniform bool before aggregation",
-         "status": ("⚠  Wrong Type", C_ORANGE)},
-    ]
-
-    incon_rows = []
-    if bad_lang:
-        incon_rows.append({
-            "col":       "lang",
-            "finding":   f"{bad_n:,} rows with unexpected codes: {bad_lang}  ({_pct(bad_n,N)})",
-            "note":      "Only 'tl' and 'en' are expected; 'und' = undetermined by Twitter",
-            "status":    ("⚠  Inconsistent", C_ORANGE),
-            "breakdowns": lang_bd,
-        })
-    if float_n:
-        incon_rows.append({
-            "col":     "pseudo_inReplyToUsername",
-            "finding": f"{float_n:,} non-null values stored as float64  ({_pct(float_n,N)})",
-            "note":    "Non-reply rows are NaN; reply rows should be cast to str before use",
-            "status":  ("⚠  Inconsistent", C_ORANGE),
-        })
-
-    sections = []
-    if dup_rows:   sections.append(("Duplicate Rows",      dup_rows))
-    if dtype_rows: sections.append(("Wrong Data Types",    dtype_rows))
-    if incon_rows: sections.append(("Inconsistent Values", incon_rows))
-
-    n_issues = sum(1 for _,rs in sections for r in rs if r["status"][1]==C_RED)
-    n_warns  = sum(1 for _,rs in sections for r in rs if r["status"][1]==C_ORANGE)
-
-    i_fg  = C_RED    if n_issues else "#475569"
-    i_bg  = BG_RED   if n_issues else "#F8FAFC"
-    i_bd  = BD_RED   if n_issues else RULE_MED
-    i_lbl = f"  ✗  {n_issues} Issue{'s' if n_issues!=1 else ''}  " if n_issues else "  ✓  0 Issues  "
-
-    pills = [
-        (i_lbl,   i_fg, i_bg, i_bd),
-        (f"  ⚠  {n_warns} Warning{'s' if n_warns!=1 else ''}  ",
-         C_ORANGE, BG_ORANGE, BD_ORANGE),
-        (f"  {N:,} rows  ·  16 columns  ",
-         "#475569", "#F8FAFC", RULE_MED),
-    ]
-
-    fig = _render(
-        title    = "Data Quality Report — Dataset 1: Tweets",
-        subtitle = "Exceptions only  ·  Missing data and dtype inventory covered in separate reports",
-        sections = sections,
-        pills    = pills,
-    )
-    _save(fig, output_dir, f"{Path(filepath).stem}_data_quality.png")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Dataset 2 — Authors
+# Dataset: Authors
 # ─────────────────────────────────────────────────────────────────────────────
 def get_data_quality_for_authors(filepath: str):
     df = pd.read_csv(filepath); N = len(df)
@@ -491,6 +392,105 @@ def get_data_quality_for_authors(filepath: str):
 
     fig = _render(
         title    = "Data Quality Report — Dataset 2: Authors",
+        subtitle = "Exceptions only  ·  Missing data and dtype inventory covered in separate reports",
+        sections = sections,
+        pills    = pills,
+    )
+    _save(fig, output_dir, f"{Path(filepath).stem}_data_quality.png")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dataset: Tweets
+# ─────────────────────────────────────────────────────────────────────────────
+def get_data_quality_for_tweets(filepath: str):
+    df = pd.read_csv(filepath); N = len(df)
+    output_dir = "output"
+
+    # Duplicates
+    dup = int(df.duplicated(subset=["pseudo_id"]).sum())
+
+    # Inconsistent
+    lc       = df["lang"].value_counts()
+    bad_lang = [l for l in lc.index if l not in {"tl","en"}]
+    bad_n    = int(sum(lc[l] for l in bad_lang))
+    lang_bd  = [(f"'{k}'", f"{int(lc[k]):,} rows  ({_pct(int(lc[k]),N)})")
+                for k in lc.index][:6]
+
+    float_n  = int(df["pseudo_inReplyToUsername"].apply(
+        lambda x: isinstance(x, float) and not pd.isna(x)).sum())
+
+    # Build sections
+    dup_rows = []
+    if dup:
+        dup_rows.append({
+            "col":     "pseudo_id",
+            "finding": f"{dup:,} duplicate {'row' if dup==1 else 'rows'}",
+            "note":    f"{_pct(dup,N)} of total dataset — likely a scraping overlap",
+            "status":  ("✗  Issue Found", C_RED),
+        })
+
+    dtype_rows = [
+        {"col": "createdAt",              "finding": "Stored as",
+         "dtype": ("str / object", "datetime64"),
+         "note": "Timestamps need parsing before any temporal analysis",
+         "status": ("⚠  Wrong Type", C_ORANGE)},
+
+        {"col": "isReply",                "finding": "Stored as",
+         "dtype": ("bool / str", "bool"),
+         "note": "Mixed serialisation — normalise to uniform bool before filtering",
+         "status": ("⚠  Wrong Type", C_ORANGE)},
+
+        {"col": "pseudo_inReplyToUsername","finding": "Stored as",
+         "dtype": ("float64", "str / object"),
+         "note": "IDs cast to float when NaNs present — loses leading-zero safety",
+         "status": ("⚠  Wrong Type", C_ORANGE)},
+
+        {"col": "author_isBlueVerified",  "finding": "Stored as",
+         "dtype": ("bool / str", "bool"),
+         "note": "Mixed serialisation — normalise to uniform bool before aggregation",
+         "status": ("⚠  Wrong Type", C_ORANGE)},
+    ]
+
+    incon_rows = []
+    if bad_lang:
+        incon_rows.append({
+            "col":       "lang",
+            "finding":   f"{bad_n:,} rows with unexpected codes: {bad_lang}  ({_pct(bad_n,N)})",
+            "note":      "Only 'tl' and 'en' are expected; 'und' = undetermined by Twitter",
+            "status":    ("⚠  Inconsistent", C_ORANGE),
+            "breakdowns": lang_bd,
+        })
+    if float_n:
+        incon_rows.append({
+            "col":     "pseudo_inReplyToUsername",
+            "finding": f"{float_n:,} non-null values stored as float64  ({_pct(float_n,N)})",
+            "note":    "Non-reply rows are NaN; reply rows should be cast to str before use",
+            "status":  ("⚠  Inconsistent", C_ORANGE),
+        })
+
+    sections = []
+    if dup_rows:   sections.append(("Duplicate Rows",      dup_rows))
+    if dtype_rows: sections.append(("Wrong Data Types",    dtype_rows))
+    if incon_rows: sections.append(("Inconsistent Values", incon_rows))
+
+    n_issues = sum(1 for _,rs in sections for r in rs if r["status"][1]==C_RED)
+    n_warns  = sum(1 for _,rs in sections for r in rs if r["status"][1]==C_ORANGE)
+
+    i_fg  = C_RED    if n_issues else "#475569"
+    i_bg  = BG_RED   if n_issues else "#F8FAFC"
+    i_bd  = BD_RED   if n_issues else RULE_MED
+    i_lbl = f"  ✗  {n_issues} Issue{'s' if n_issues!=1 else ''}  " if n_issues else "  ✓  0 Issues  "
+
+    pills = [
+        (i_lbl,   i_fg, i_bg, i_bd),
+        (f"  ⚠  {n_warns} Warning{'s' if n_warns!=1 else ''}  ",
+         C_ORANGE, BG_ORANGE, BD_ORANGE),
+        (f"  {N:,} rows  ·  16 columns  ",
+         "#475569", "#F8FAFC", RULE_MED),
+    ]
+
+    fig = _render(
+        title    = "Data Quality Report — Dataset 1: Tweets",
         subtitle = "Exceptions only  ·  Missing data and dtype inventory covered in separate reports",
         sections = sections,
         pills    = pills,
