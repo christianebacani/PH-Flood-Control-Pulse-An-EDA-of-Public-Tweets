@@ -5,12 +5,11 @@ DPWH Flood Control Twitter Dataset
 Professional Portfolio-Ready Version
 
 Enhancements:
-• X-axis collisions fixed with rotated labels
-• Log-scale ticks simplified
+• X-axis and Y-axis tick lines fixed for readability
 • Median line and label readable
+• Stats panel neat and aligned
 • "Others" category for crowded bars
 • Horizontal bars for categorical distributions
-• Stats panel consistent and readable
 • Clean, executive-ready, professional visualizations
 """
 
@@ -51,12 +50,25 @@ def _save(fig, out_dir, filename):
 
 def _style_ax(ax, xlabel="", grid_axis="y"):
     ax.set_facecolor(CARD_BG)
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-    ax.tick_params(colors=TXT_MED, labelsize=9, length=0)
+
+    # Hide all spines except bottom and left for subtle reference
+    for loc, spine in ax.spines.items():
+        if loc in ['bottom','left']:
+            spine.set_visible(True)
+            spine.set_color(RULE)
+            spine.set_linewidth(0.8)
+        else:
+            spine.set_visible(False)
+
+    # Tick parameters: subtle ticks for readability
+    ax.tick_params(colors=TXT_MED, labelsize=9, length=4, width=0.8)
+    ax.tick_params(bottom=True, left=True)
+
     if xlabel:
         ax.set_xlabel(xlabel, fontsize=10, color=TXT_MED, labelpad=6)
-    if grid_axis=="y":
+
+    # Light grid for major axis
+    if grid_axis == "y":
         ax.yaxis.grid(True, color=RULE, linewidth=0.6)
         ax.xaxis.grid(False)
     else:
