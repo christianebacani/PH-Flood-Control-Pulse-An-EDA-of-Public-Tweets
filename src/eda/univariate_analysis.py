@@ -258,9 +258,7 @@ def _plot_histogram(ax, data, color, title):
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
 
-    # Median dashed line only — no floating text label
     med = float(nonzero.median())
-    ax.axvline(med, linestyle="--", linewidth=1.5, color=color, zorder=3)
 
     # Stats panel — zero info as first row when present, fully inside axes
     q1 = float(nonzero.quantile(0.25))
