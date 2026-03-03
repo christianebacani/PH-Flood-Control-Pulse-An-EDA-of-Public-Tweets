@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Check the output from the claude.ai and implement it to the module "univariate_analysis.py" and if it's good to you then fix the README.md before moving on to the next analysis
+    - Check the feedback of the claude.ai to check if the given output is already ready to be an output for a professional portfolio, if yes fix the README.md
