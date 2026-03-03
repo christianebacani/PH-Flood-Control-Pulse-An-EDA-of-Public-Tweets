@@ -60,10 +60,15 @@ PALETTE = {
     "author_following": "#8B5CF6",
 }
 
+LANG_LABELS = {
+    "tl": "Filipino (tl)",
+    "en": "English (en)",
+}
+
 LANG_COLORS = {
-    "tl":    "#3B82F6",
-    "en":    "#14B8A6",
-    "Other": "#CBD5E1",
+    "Filipino (tl)": "#3B82F6",
+    "English (en)":  "#14B8A6",
+    "Other":         "#CBD5E1",
 }
 
 plt.rcParams.update({
@@ -385,7 +390,9 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
 
     # 2. Top Languages
     ax = axes[1]
-    lang_counts = df["lang"].value_counts().head(5)
+    lang_counts = (df["lang"]
+                  .map(lambda x: LANG_LABELS.get(x, x))
+                  .value_counts().head(5))
     bars = ax.barh(
         lang_counts.index[::-1], lang_counts.values[::-1],
         color=C_BAR, height=0.55, zorder=2,
@@ -568,8 +575,9 @@ def get_temporal_distribution(data_source, save_path=None,
 
     # tz already stripped in _normalize_dtypes — no UserWarning here
     df["_period"]   = df["createdAt"].dt.to_period(freq).dt.to_timestamp()
-    top_langs       = df["lang"].value_counts().head(top_n_lang).index.tolist()
-    df["_lang_grp"] = df["lang"].where(df["lang"].isin(top_langs), other="Other")
+    df["_lang_mapped"] = df["lang"].map(lambda x: LANG_LABELS.get(x, x))
+    top_langs         = df["_lang_mapped"].value_counts().head(top_n_lang).index.tolist()
+    df["_lang_grp"]   = df["_lang_mapped"].where(df["_lang_mapped"].isin(top_langs), other="Other")
 
     pivot = (
         df.groupby(["_period", "_lang_grp"])
