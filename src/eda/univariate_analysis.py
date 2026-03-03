@@ -24,6 +24,7 @@ get_temporal_distribution(data_source, save_path=None, freq="D")
     Tweet volume over time, annotated with top spike dates.
 """
 
+import os
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -125,6 +126,7 @@ def _safe_show(fig, save_path=None):
     Falls back to auto-save when no GUI backend is available.
     """
     if save_path:
+        save_path = os.path.normpath(save_path)
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
         print(f"✓ Chart saved → {save_path}")
 
@@ -136,7 +138,7 @@ def _safe_show(fig, save_path=None):
     else:
         if not save_path:
             fig.savefig("univariate_output.png", dpi=300, bbox_inches="tight")
-            print("✓ Chart save non-interactive — saved → univariate_output.png")
+            print("[viz] Non-interactive — saved → univariate_output.png")
         plt.close(fig)
 
 
@@ -308,6 +310,9 @@ def _plot_histogram(ax, data, color, title):
     _style_ax(ax)
 
 
+# 📊  PUBLIC FUNCTIONS
+# ──────────────────────────────────────────────────────────────────
+
 def get_univariate_for_authors(data_source, save_path=None):
     """
     Dataset 1 · Authors — all relevant columns.
@@ -423,7 +428,7 @@ def get_univariate_for_authors(data_source, save_path=None):
 
 def get_univariate_for_tweets(data_source, save_path=None):
     """
-    Dataset 2: · Tweets — numeric engagement columns.
+    Dataset 2 · Tweets — numeric engagement columns.
 
     Produces a 2×3 grid of histograms (non-zero values only):
       Row 1: Retweets · Likes · Views
@@ -468,7 +473,7 @@ def get_univariate_for_tweets(data_source, save_path=None):
 
 def get_univariate_for_tweet_categoricals(data_source, save_path=None):
     """
-    Dataset 1 · Tweets — categorical columns.
+    Dataset 2 · Tweets — categorical columns.
 
     Produces three bar charts side by side:
       1. Reply Status        (Original vs Reply)
@@ -567,7 +572,7 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
 def get_temporal_distribution(data_source, save_path=None,
                                freq="D", top_n_lang=2):
     """
-    Dataset 1 · Tweets — tweet volume over time.
+    Dataset 2 · Tweets — tweet volume over time.
 
     Area chart stacked by language, with top-3 spike dates annotated
     so narrative context (e.g. typhoon events) is immediately visible.
