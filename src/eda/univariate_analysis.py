@@ -87,7 +87,7 @@ plt.rcParams.update({
 def _fmt_k(x, _):
     """Format numbers as K / M for axis ticks."""
     if x >= 1_000_000:
-        return f"{x/1_000_000:.1f}M"
+        v = x/1_000_000; return f"{v:.1f}M" if v < 10 else f"{v:.0f}M"
     if x >= 1_000:
         return f"{x/1_000:.0f}K"
     return f"{int(x)}"
@@ -272,7 +272,8 @@ def _plot_histogram(ax, data, color, title):
     q3 = float(nonzero.quantile(0.75))
     rows = []
     if n_zeros > 0:
-        rows.append(f"Zeros   {n_zeros / N * 100:.1f}%  (n={n_zeros:,})")
+        rows.append(f"Zeros   {n_zeros / N * 100:.1f}%")
+        rows.append(f"  n = {n_zeros:,}")
     rows += [
         f"Median  {_fmt_k(med, None)}",
         f"Mean    {_fmt_k(nonzero.mean(), None)}",
