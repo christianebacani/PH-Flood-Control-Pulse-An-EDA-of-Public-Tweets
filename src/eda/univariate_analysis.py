@@ -6,8 +6,8 @@ Twitter/X EDA — two datasets, four public functions.
 
 Datasets
 --------
-Dataset 1 · Tweets   (195,744 rows × 16 columns)
-Dataset 2 · Authors  (227 rows × 8 columns)
+Dataset 1 · Authors  (227 rows × 8 columns)
+Dataset 2 · Tweets   (195,744 rows × 16 columns)
 
 Public API
 ----------
@@ -126,7 +126,7 @@ def _safe_show(fig, save_path=None):
     """
     if save_path:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
-        print(f"[viz] Saved → {save_path}")
+        print(f"✓ Chart saved → {save_path}")
 
     is_gui = matplotlib.get_backend().lower() not in (
         "agg", "cairo", "pdf", "ps", "svg", "template"
@@ -136,7 +136,7 @@ def _safe_show(fig, save_path=None):
     else:
         if not save_path:
             fig.savefig("univariate_output.png", dpi=300, bbox_inches="tight")
-            print("[viz] Non-interactive — saved → univariate_output.png")
+            print("✓ Chart save non-interactive — saved → univariate_output.png")
         plt.close(fig)
 
 
@@ -308,12 +308,122 @@ def _plot_histogram(ax, data, color, title):
     _style_ax(ax)
 
 
-# 📊  PUBLIC FUNCTIONS
-# ──────────────────────────────────────────────────────────────────
+def get_univariate_for_authors(data_source, save_path=None):
+    """
+    Dataset 1 · Authors — all relevant columns.
+
+    Produces a 2-row layout:
+      Row 1 (3 panels): Follower Count · Following Count · Verification
+      Row 2 (full width): Top Author Locations (horizontal bar)
+
+    Parameters
+    ----------
+    data_source : str or pd.DataFrame
+    save_path : str, optional
+    """
+    df = pd.read_csv(data_source) if isinstance(data_source, str) \
+         else data_source.copy()
+    df = _normalize_dtypes(df)
+    _validate_columns(
+        df, ["author_followers", "author_following",
+             "author_isBlueVerified", "author_location"]
+    )
+
+    N   = len(df)
+    fig = plt.figure(figsize=(18, 12))
+    fig.suptitle(
+        "Univariate Analysis \u2014 Author Profiles",
+        fontsize=17, fontweight="bold", color=TXT, y=1.01,
+    )
+
+    gs = gridspec.GridSpec(
+        2, 3, figure=fig,
+        hspace=0.65, wspace=0.35,
+        height_ratios=[1, 0.9],
+    )
+    ax_fol  = fig.add_subplot(gs[0, 0])
+    ax_fing = fig.add_subplot(gs[0, 1])
+    ax_ver  = fig.add_subplot(gs[0, 2])
+    ax_loc  = fig.add_subplot(gs[1, :])
+
+    # Follower Count
+    _plot_histogram(
+        ax_fol, df["author_followers"],
+        PALETTE["author_followers"], "Follower Count",
+    )
+
+    # Following Count
+    _plot_histogram(
+        ax_fing, df["author_following"],
+        PALETTE["author_following"], "Following Count",
+    )
+
+    # Verification bar
+    vcounts = (
+        df["author_isBlueVerified"]
+        .map({False: "Not Verified", True: "Verified"})
+        .value_counts()
+        .reindex(["Not Verified", "Verified"])
+    )
+    bars = ax_ver.bar(
+        vcounts.index, vcounts.values,
+        color="#3B82F6", width=0.5, zorder=2,
+    )
+    for bar, val in zip(bars, vcounts.values):
+        ax_ver.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + N * 0.012,
+            f"{val:,} ({val/N*100:.1f}%)",
+            ha="center", va="bottom", fontsize=9, color=TXT_MED,
+        )
+    ax_ver.set_title("Author Verification")
+    ax_ver.set_ylim(0, vcounts.max() * 1.18)
+    ax_ver.yaxis.set_major_formatter(
+        FuncFormatter(lambda x, _: f"{int(x):,}")
+    )
+    _style_ax(ax_ver)
+
+    # Top Author Locations
+    loc_raw    = df["author_location"].fillna("Unknown").str.strip()
+    loc_raw    = loc_raw.replace({"": "Unknown"})
+    loc_counts = loc_raw.value_counts()
+
+    top_n  = 10
+    top    = loc_counts.head(top_n)
+    others = loc_counts.iloc[top_n:].sum()
+
+    loc_plot = pd.concat(
+        [top, pd.Series({"Others": others})]
+    ).sort_values()
+
+    loc_plot.index = [_truncate_label(str(lbl)) for lbl in loc_plot.index]
+
+    colors = ["#3B82F6"] * len(top) + ["#94A3B8"]
+    bars   = ax_loc.barh(
+        loc_plot.index, loc_plot.values,
+        color=colors, height=0.6, zorder=2,
+    )
+    for bar, val in zip(bars, loc_plot.values):
+        ax_loc.text(
+            val + loc_plot.max() * 0.01,
+            bar.get_y() + bar.get_height() / 2,
+            f"{val:,} ({val/N*100:.1f}%)",
+            va="center", fontsize=9, color=TXT_MED,
+        )
+    ax_loc.set_title("Top Author Locations", pad=10)
+    ax_loc.set_xlabel("Number of Authors", fontsize=9, color=TXT_MED)
+    ax_loc.set_xlim(0, loc_plot.max() * 1.22)
+    ax_loc.xaxis.set_major_formatter(
+        FuncFormatter(lambda x, _: f"{int(x):,}")
+    )
+    _style_ax(ax_loc, grid_axis="x")
+
+    _safe_show(fig, save_path)
+
 
 def get_univariate_for_tweets(data_source, save_path=None):
     """
-    Dataset 1 · Tweets — numeric engagement columns.
+    Dataset 2: · Tweets — numeric engagement columns.
 
     Produces a 2×3 grid of histograms (non-zero values only):
       Row 1: Retweets · Likes · Views
@@ -451,119 +561,6 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
     _style_ax(ax)
 
     plt.tight_layout()
-    _safe_show(fig, save_path)
-
-
-def get_univariate_for_authors(data_source, save_path=None):
-    """
-    Dataset 2 · Authors — all relevant columns.
-
-    Produces a 2-row layout:
-      Row 1 (3 panels): Follower Count · Following Count · Verification
-      Row 2 (full width): Top Author Locations (horizontal bar)
-
-    Parameters
-    ----------
-    data_source : str or pd.DataFrame
-    save_path : str, optional
-    """
-    df = pd.read_csv(data_source) if isinstance(data_source, str) \
-         else data_source.copy()
-    df = _normalize_dtypes(df)
-    _validate_columns(
-        df, ["author_followers", "author_following",
-             "author_isBlueVerified", "author_location"]
-    )
-
-    N   = len(df)
-    fig = plt.figure(figsize=(18, 12))
-    fig.suptitle(
-        "Univariate Analysis \u2014 Author Profiles",
-        fontsize=17, fontweight="bold", color=TXT, y=1.01,
-    )
-
-    gs = gridspec.GridSpec(
-        2, 3, figure=fig,
-        hspace=0.65, wspace=0.35,
-        height_ratios=[1, 0.9],
-    )
-    ax_fol  = fig.add_subplot(gs[0, 0])
-    ax_fing = fig.add_subplot(gs[0, 1])
-    ax_ver  = fig.add_subplot(gs[0, 2])
-    ax_loc  = fig.add_subplot(gs[1, :])
-
-    # Follower Count
-    _plot_histogram(
-        ax_fol, df["author_followers"],
-        PALETTE["author_followers"], "Follower Count",
-    )
-
-    # Following Count
-    _plot_histogram(
-        ax_fing, df["author_following"],
-        PALETTE["author_following"], "Following Count",
-    )
-
-    # Verification bar
-    vcounts = (
-        df["author_isBlueVerified"]
-        .map({False: "Not Verified", True: "Verified"})
-        .value_counts()
-        .reindex(["Not Verified", "Verified"])
-    )
-    bars = ax_ver.bar(
-        vcounts.index, vcounts.values,
-        color="#3B82F6", width=0.5, zorder=2,
-    )
-    for bar, val in zip(bars, vcounts.values):
-        ax_ver.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + N * 0.012,
-            f"{val:,} ({val/N*100:.1f}%)",
-            ha="center", va="bottom", fontsize=9, color=TXT_MED,
-        )
-    ax_ver.set_title("Author Verification")
-    ax_ver.set_ylim(0, vcounts.max() * 1.18)
-    ax_ver.yaxis.set_major_formatter(
-        FuncFormatter(lambda x, _: f"{int(x):,}")
-    )
-    _style_ax(ax_ver)
-
-    # Top Author Locations
-    loc_raw    = df["author_location"].fillna("Unknown").str.strip()
-    loc_raw    = loc_raw.replace({"": "Unknown"})
-    loc_counts = loc_raw.value_counts()
-
-    top_n  = 10
-    top    = loc_counts.head(top_n)
-    others = loc_counts.iloc[top_n:].sum()
-
-    loc_plot = pd.concat(
-        [top, pd.Series({"Others": others})]
-    ).sort_values()
-
-    loc_plot.index = [_truncate_label(str(lbl)) for lbl in loc_plot.index]
-
-    colors = ["#3B82F6"] * len(top) + ["#94A3B8"]
-    bars   = ax_loc.barh(
-        loc_plot.index, loc_plot.values,
-        color=colors, height=0.6, zorder=2,
-    )
-    for bar, val in zip(bars, loc_plot.values):
-        ax_loc.text(
-            val + loc_plot.max() * 0.01,
-            bar.get_y() + bar.get_height() / 2,
-            f"{val:,} ({val/N*100:.1f}%)",
-            va="center", fontsize=9, color=TXT_MED,
-        )
-    ax_loc.set_title("Top Author Locations", pad=10)
-    ax_loc.set_xlabel("Number of Authors", fontsize=9, color=TXT_MED)
-    ax_loc.set_xlim(0, loc_plot.max() * 1.22)
-    ax_loc.xaxis.set_major_formatter(
-        FuncFormatter(lambda x, _: f"{int(x):,}")
-    )
-    _style_ax(ax_loc, grid_axis="x")
-
     _safe_show(fig, save_path)
 
 
