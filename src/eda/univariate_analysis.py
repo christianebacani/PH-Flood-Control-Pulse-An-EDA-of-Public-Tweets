@@ -12,7 +12,7 @@ Dataset 2 · Authors  (227 rows × 8 columns)
 Public API
 ----------
 get_univariate_for_tweets(data_source, save_path=None)
-    2×3 grid — all 6 engagement metrics with zero-inflation labels.
+    2×3 grid — all 6 engagement metrics with zero-inflation annotations.
 
 get_univariate_for_tweet_categoricals(data_source, save_path=None)
     Reply status · Language breakdown · Author verification.
@@ -34,6 +34,8 @@ from matplotlib.ticker import (
     LogLocator,
     AutoMinorLocator,
     MaxNLocator,
+    NullLocator,
+    NullFormatter,
 )
 
 # ──────────────────────────────────────────────────────────────────
@@ -46,16 +48,14 @@ TXT      = "#0F172A"
 TXT_MED  = "#475569"
 TXT_LT   = "#94A3B8"
 RULE     = "#E2E8F0"
-ZERO_CLR = "#CBD5E1"
 
-# Per-metric palette
 PALETTE = {
-    "retweetCount":     "#3B82F6",   # blue
-    "likeCount":        "#14B8A6",   # teal
-    "viewCount":        "#8B5CF6",   # purple
-    "quoteCount":       "#F59E0B",   # amber
-    "replyCount":       "#EF4444",   # red
-    "bookmarkCount":    "#10B981",   # emerald
+    "retweetCount":     "#3B82F6",
+    "likeCount":        "#14B8A6",
+    "viewCount":        "#8B5CF6",
+    "quoteCount":       "#F59E0B",
+    "replyCount":       "#EF4444",
+    "bookmarkCount":    "#10B981",
     "author_followers": "#14B8A6",
     "author_following": "#8B5CF6",
 }
@@ -93,6 +93,11 @@ def _fmt_k(x, _):
     return f"{int(x)}"
 
 
+def _truncate_label(label, max_len=28):
+    """Truncate long location labels with an ellipsis."""
+    return label if len(label) <= max_len else label[:max_len - 1] + "…"
+
+
 def _safe_show(fig, save_path=None):
     """
     Display or save without the FigureCanvasAgg UserWarning.
@@ -100,7 +105,7 @@ def _safe_show(fig, save_path=None):
     """
     if save_path:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
-        print(f"✓ Chart saved → {save_path}")
+        print(f"[viz] Saved → {save_path}")
 
     is_gui = matplotlib.get_backend().lower() not in (
         "agg", "cairo", "pdf", "ps", "svg", "template"
@@ -140,16 +145,11 @@ def _normalize_dtypes(df):
     """
     Fix mixed-type columns flagged by the data quality report.
 
-    Tweets dataset
-    --------------
-    isReply, author_isBlueVerified  → bool
-    createdAt                       → datetime64[utc]
-    pseudo_inReplyToUsername        → str (NaN preserved)
-
-    Authors dataset
-    ---------------
-    author_isBlueVerified           → bool
-    author_createdAt                → datetime64[utc]
+    Tweets  → isReply, author_isBlueVerified: bool
+            → createdAt: datetime64 (tz stripped)
+            → pseudo_inReplyToUsername: str (NaN preserved)
+    Authors → author_isBlueVerified: bool
+            → author_createdAt: datetime64 (tz stripped)
     """
     for col in ("isReply", "author_isBlueVerified"):
         if col in df.columns:
@@ -160,7 +160,10 @@ def _normalize_dtypes(df):
 
     for col in ("createdAt", "author_createdAt"):
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce", utc=True)
+            df[col] = (
+                pd.to_datetime(df[col], errors="coerce", utc=True)
+                .dt.tz_localize(None)
+            )
 
     if "pseudo_inReplyToUsername" in df.columns:
         df["pseudo_inReplyToUsername"] = (
@@ -191,88 +194,119 @@ def _validate_columns(df, required):
         raise ValueError(f"Missing required columns: {missing}")
 
 
+def _set_clean_log_ticks(ax):
+    """
+    Apply sparse, readable log-scale ticks.
+
+    Only labels decade boundaries (1, 10, 100, 1K, 10K, 100K, 1M, 10M).
+    Suppresses the intermediate ×2 and ×5 sub-ticks that cause crowding.
+    Minor ticks are drawn but unlabelled for visual reference.
+    """
+    ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=10))
+    ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10), numticks=50))
+    ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
+    # Suppress minor tick labels entirely
+    ax.xaxis.set_minor_formatter(NullFormatter())
+
+
 def _plot_zero_inflated_histogram(ax, data, color, title):
     """
-    Single zero-inflated count histogram.
+    Histogram for a single zero-inflated count column.
 
-    - Grey bar for zeros with 'Zero N (X%)' label
-    - Log x-axis when value range > 50×
-    - Dashed median line + rotated label (only when median > 0)
-    - Stats panel: Median / Mean / IQR / Max
+    Design
+    ------
+    - Zeros excluded from histogram entirely
+    - Zero count shown as italic subtitle above title
+    - Non-zero values on log scale (when range > 50x), linear otherwise
+    - Decade-only x-axis ticks (1, 10, 100, 1K...) — no crowding
+    - Dashed median line with label at bottom of line (never overlaps stats panel)
+    - Stats panel at top-right (Median / Mean / IQR / Max)
     """
-    data = pd.to_numeric(data, errors="coerce").dropna()
-    N    = len(data)
-    ax.set_title(title)
+    data    = pd.to_numeric(data, errors="coerce").dropna()
+    N       = len(data)
+    nonzero = data[data > 0]
+    n_zeros = int((data == 0).sum())
 
-    if N == 0:
-        ax.text(0.5, 0.5, "No Data", ha="center", va="center",
-                transform=ax.transAxes, color=TXT_MED)
+    # Title with zero-inflation subtitle above it
+    ax.set_title(title, pad=12)
+    if N > 0 and n_zeros > 0:
+        pct = n_zeros / N * 100
+        ax.text(
+            0.5, 1.06,
+            f"{pct:.1f}% zeros  (n\u202f=\u202f{n_zeros:,})",
+            transform=ax.transAxes,
+            ha="center", va="bottom",
+            fontsize=8, color=TXT_LT, style="italic",
+        )
+
+    if N == 0 or len(nonzero) == 0:
+        ax.text(0.5, 0.5, "All values are zero" if N > 0 else "No Data",
+                ha="center", va="center", transform=ax.transAxes,
+                color=TXT_MED, fontsize=9)
+        _style_ax(ax)
         return
 
-    n_zeros  = int((data == 0).sum())
-    pct_zero = n_zeros / N * 100
-    nonzero  = data[data > 0]
+    # Decide scale
+    use_log = (nonzero.max() / max(nonzero.min(), 1)) > 50
 
-    # ── Zero bar ──────────────────────────────────────────────────
-    if n_zeros > 0:
-        zbar = ax.bar(0.5, n_zeros, width=0.5,
-                      color=ZERO_CLR, alpha=0.9, zorder=2)
-        ax.text(
-            zbar[0].get_x() + zbar[0].get_width() / 2,
-            n_zeros,
-            f"Zero\n{n_zeros:,} ({pct_zero:.1f}%)",
-            ha="center", va="bottom", fontsize=8,
-            color=TXT_MED, fontweight="bold",
-        )
+    if use_log:
+        log_min = int(np.floor(np.log10(nonzero.min())))
+        log_max = int(np.ceil(np.log10(nonzero.max())))
+        bins = np.logspace(log_min, log_max, 30)
+        ax.set_xscale("log")
+        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=12))
+        ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10), numticks=100))
+        ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
+        ax.xaxis.set_minor_formatter(NullFormatter())
+    else:
+        bins = 30
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=6, integer=True))
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
 
-    # ── Non-zero histogram ────────────────────────────────────────
-    if len(nonzero) > 0:
-        use_log = nonzero.max() / max(nonzero.min(), 1) > 50
+    # Draw bars
+    counts, edges = np.histogram(nonzero, bins=bins)
+    ax.bar(edges[:-1], counts, width=np.diff(edges) * 0.88,
+           align="edge", color=color, alpha=0.85, zorder=2)
 
-        if use_log:
-            bins = np.logspace(
-                np.floor(np.log10(nonzero.min())),
-                np.ceil(np.log10(nonzero.max())),
-                26,
-            )
-            ax.set_xscale("log")
-            ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1, 2, 5]))
-            ax.xaxis.set_minor_locator(
-                LogLocator(base=10.0, subs=np.arange(1, 10) * 0.1)
-            )
-        else:
-            bins = 25
-            ax.set_xscale("linear")
-            ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
-            ax.xaxis.set_minor_locator(AutoMinorLocator())
+    # Set clean xlim with padding — MUST come after bar() so autoscale is done
+    if use_log:
+        ax.set_xlim(10 ** (log_min - 0.25), 10 ** (log_max + 0.15))
+    
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
 
-        counts, edges = np.histogram(nonzero, bins=bins)
-        ax.bar(
-            edges[:-1], counts,
-            width=np.diff(edges) * 0.88,
-            align="edge", color=color, alpha=0.85, zorder=2,
-        )
+    # Median line — label at bottom so it never hits the top-right stats panel
+    med = nonzero.median()
+    ax.axvline(med, linestyle="--", linewidth=1.5, color=color, zorder=3)
 
-        # Median line
-        med = data.median()
-        if med > 0:
-            ax.axvline(med, linestyle="--", linewidth=1.5,
-                       color=color, zorder=3)
-            ax.text(
-                med, ax.get_ylim()[1] * 0.97,
-                f"Median: {_fmt_k(med, None)}",
-                rotation=90, va="top", ha="right",
-                fontsize=8, color=color,
-            )
+    # Compute where median falls as fraction of the visible x range
+    x0, x1 = ax.get_xlim()
+    if use_log and x0 > 0 and x1 > 0 and med > 0:
+        med_frac = (np.log10(med) - np.log10(x0)) / (np.log10(x1) - np.log10(x0))
+    elif x1 > x0:
+        med_frac = (med - x0) / (x1 - x0)
+    else:
+        med_frac = 0.5
 
-    # ── Stats panel ───────────────────────────────────────────────
-    med    = data.median()
-    q1, q3 = data.quantile([0.25, 0.75])
-    panel  = (
+    med_frac  = float(np.clip(med_frac, 0.05, 0.95))
+    label_ha  = "left" if med_frac < 0.65 else "right"
+    label_off = " " if label_ha == "left" else " "
+
+    ax.text(
+        med_frac, 0.03,
+        f"{label_off}{_fmt_k(med, None)}",
+        transform=ax.transAxes,
+        va="bottom", ha=label_ha,
+        fontsize=8, color=color, fontweight="bold",
+    )
+
+    # Stats panel — top-right, monospaced, light background
+    q1, q3 = nonzero.quantile([0.25, 0.75])
+    panel = (
         f"Median  {_fmt_k(med, None)}\n"
-        f"Mean    {_fmt_k(data.mean(), None)}\n"
-        f"IQR     {_fmt_k(q1, None)}–{_fmt_k(q3, None)}\n"
-        f"Max     {_fmt_k(data.max(), None)}"
+        f"Mean    {_fmt_k(nonzero.mean(), None)}\n"
+        f"IQR     {_fmt_k(q1, None)}\u2013{_fmt_k(q3, None)}\n"
+        f"Max     {_fmt_k(nonzero.max(), None)}"
     )
     ax.text(
         0.98, 0.98, panel,
@@ -282,9 +316,7 @@ def _plot_zero_inflated_histogram(ax, data, color, title):
                   boxstyle="round,pad=0.45", alpha=0.9),
     )
 
-    ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    plt.setp(ax.get_xticklabels(), rotation=30, ha="right", fontsize=8)
     _style_ax(ax)
 
 
@@ -296,18 +328,16 @@ def get_univariate_for_tweets(data_source, save_path=None):
     """
     Dataset 1 · Tweets — numeric engagement columns.
 
-    Produces a 2×3 grid of zero-inflated histograms:
+    Produces a 2×3 grid of histograms (non-zero values only):
       Row 1: Retweets · Likes · Views
       Row 2: Quotes   · Replies · Bookmarks
+
+    Zero-inflation rate shown as italic text above each panel title.
 
     Parameters
     ----------
     data_source : str or pd.DataFrame
-        Path to tweets CSV or a pre-loaded DataFrame.
     save_path : str, optional
-        Output path (e.g. 'outputs/tweet_engagement.png').
-        Auto-saves to 'univariate_output.png' when running
-        in a non-interactive (script) environment.
     """
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
          else data_source.copy()
@@ -326,14 +356,16 @@ def get_univariate_for_tweets(data_source, save_path=None):
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 11))
     fig.suptitle(
-        "Univariate Analysis — Tweet Engagement",
+        "Univariate Analysis \u2014 Tweet Engagement",
         fontsize=17, fontweight="bold", color=TXT, y=1.01,
     )
 
     for ax, (col, title) in zip(axes.flat, metrics):
         _plot_zero_inflated_histogram(ax, df[col], PALETTE[col], title)
 
-    plt.tight_layout(h_pad=3.5, w_pad=2.5)
+    # Extra top margin so the zero subtitles don't get clipped
+    plt.tight_layout(h_pad=5.0, w_pad=2.5)
+    plt.subplots_adjust(top=0.93)
     _safe_show(fig, save_path)
 
 
@@ -342,8 +374,8 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
     Dataset 1 · Tweets — categorical columns.
 
     Produces three bar charts side by side:
-      1. Reply Status       (Original vs Reply)
-      2. Top Languages      (sorted horizontal bars)
+      1. Reply Status        (Original vs Reply)
+      2. Top Languages       (sorted horizontal bars)
       3. Author Verification (Not Verified vs Verified)
 
     Parameters
@@ -356,16 +388,16 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
     df = _normalize_dtypes(df)
     _validate_columns(df, ["isReply", "lang", "author_isBlueVerified"])
 
-    N   = len(df)
+    N     = len(df)
     C_BAR = "#3B82F6"
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
     fig.suptitle(
-        "Univariate Analysis — Tweet Categoricals",
+        "Univariate Analysis \u2014 Tweet Categoricals",
         fontsize=17, fontweight="bold", color=TXT, y=1.03,
     )
 
-    # ── 1. Reply Status ───────────────────────────────────────────
+    # 1. Reply Status
     ax = axes[0]
     counts = (
         df["isReply"]
@@ -387,7 +419,7 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax)
 
-    # ── 2. Top Languages ──────────────────────────────────────────
+    # 2. Top Languages
     ax = axes[1]
     lang_counts = df["lang"].value_counts().head(5)
     bars = ax.barh(
@@ -407,7 +439,7 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax, grid_axis="x")
 
-    # ── 3. Author Verification ────────────────────────────────────
+    # 3. Author Verification
     ax = axes[2]
     vcounts = (
         df["author_isBlueVerified"]
@@ -444,7 +476,6 @@ def get_univariate_for_authors(data_source, save_path=None):
     Parameters
     ----------
     data_source : str or pd.DataFrame
-        Path to authors CSV or a pre-loaded DataFrame.
     save_path : str, optional
     """
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
@@ -458,13 +489,13 @@ def get_univariate_for_authors(data_source, save_path=None):
     N   = len(df)
     fig = plt.figure(figsize=(18, 12))
     fig.suptitle(
-        "Univariate Analysis — Author Profiles",
+        "Univariate Analysis \u2014 Author Profiles",
         fontsize=17, fontweight="bold", color=TXT, y=1.01,
     )
 
     gs = gridspec.GridSpec(
         2, 3, figure=fig,
-        hspace=0.55, wspace=0.35,
+        hspace=0.65, wspace=0.35,
         height_ratios=[1, 0.9],
     )
     ax_fol  = fig.add_subplot(gs[0, 0])
@@ -472,19 +503,19 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_ver  = fig.add_subplot(gs[0, 2])
     ax_loc  = fig.add_subplot(gs[1, :])
 
-    # ── Follower Count ────────────────────────────────────────────
+    # Follower Count
     _plot_zero_inflated_histogram(
         ax_fol, df["author_followers"],
         PALETTE["author_followers"], "Follower Count",
     )
 
-    # ── Following Count ───────────────────────────────────────────
+    # Following Count
     _plot_zero_inflated_histogram(
         ax_fing, df["author_following"],
         PALETTE["author_following"], "Following Count",
     )
 
-    # ── Verification bar ──────────────────────────────────────────
+    # Verification bar
     vcounts = (
         df["author_isBlueVerified"]
         .map({False: "Not Verified", True: "Verified"})
@@ -509,7 +540,7 @@ def get_univariate_for_authors(data_source, save_path=None):
     )
     _style_ax(ax_ver)
 
-    # ── Top Author Locations ──────────────────────────────────────
+    # Top Author Locations
     loc_raw    = df["author_location"].fillna("Unknown").str.strip()
     loc_raw    = loc_raw.replace({"": "Unknown"})
     loc_counts = loc_raw.value_counts()
@@ -521,6 +552,8 @@ def get_univariate_for_authors(data_source, save_path=None):
     loc_plot = pd.concat(
         [top, pd.Series({"Others": others})]
     ).sort_values()
+
+    loc_plot.index = [_truncate_label(str(lbl)) for lbl in loc_plot.index]
 
     colors = ["#3B82F6"] * len(top) + ["#94A3B8"]
     bars   = ax_loc.barh(
@@ -558,9 +591,9 @@ def get_temporal_distribution(data_source, save_path=None,
     data_source : str or pd.DataFrame
     save_path : str, optional
     freq : str
-        Pandas offset alias — 'D' daily (default), 'W' weekly.
+        Pandas offset alias: 'D' daily (default), 'W' weekly.
     top_n_lang : int
-        Number of top languages shown individually; rest → 'Other'.
+        Number of top languages shown individually; rest grouped as 'Other'.
     """
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
          else data_source.copy()
@@ -568,7 +601,9 @@ def get_temporal_distribution(data_source, save_path=None,
     _validate_columns(df, ["createdAt", "lang"])
 
     df = df.dropna(subset=["createdAt"])
-    df["_period"] = df["createdAt"].dt.tz_localize(None).dt.to_period(freq).dt.to_timestamp()
+
+    # tz already stripped in _normalize_dtypes — no UserWarning here
+    df["_period"]   = df["createdAt"].dt.to_period(freq).dt.to_timestamp()
     top_langs       = df["lang"].value_counts().head(top_n_lang).index.tolist()
     df["_lang_grp"] = df["lang"].where(df["lang"].isin(top_langs), other="Other")
 
@@ -585,7 +620,7 @@ def get_temporal_distribution(data_source, save_path=None,
 
     fig, ax = plt.subplots(figsize=(16, 5))
     fig.suptitle(
-        "Univariate Analysis — Tweet Volume Over Time",
+        "Univariate Analysis \u2014 Tweet Volume Over Time",
         fontsize=17, fontweight="bold", color=TXT, y=1.02,
     )
 
