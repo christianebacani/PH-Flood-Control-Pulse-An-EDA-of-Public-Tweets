@@ -128,7 +128,6 @@ def _style_ax(ax, grid_axis="y", xlabel=""):
             spine.set_linewidth(0.8)
 
     ax.tick_params(which="major", length=5, width=0.8, labelsize=9)
-    ax.tick_params(which="minor", length=3, width=0.5)
 
     if grid_axis == "y":
         ax.yaxis.grid(True, which="major", color=RULE, linewidth=0.6, zorder=0)
@@ -200,13 +199,10 @@ def _set_clean_log_ticks(ax):
 
     Only labels decade boundaries (1, 10, 100, 1K, 10K, 100K, 1M, 10M).
     Suppresses the intermediate ×2 and ×5 sub-ticks that cause crowding.
-    Minor ticks are drawn but unlabelled for visual reference.
     """
     ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=10))
-    ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10), numticks=50))
     ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
-    # Suppress minor tick labels entirely
-    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.xaxis.set_minor_locator(NullLocator())
 
 
 def _plot_histogram(ax, data, color, title):
@@ -244,13 +240,12 @@ def _plot_histogram(ax, data, color, title):
         bins = np.logspace(log_min, log_max, 30)
         ax.set_xscale("log")
         ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=12))
-        ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10), numticks=100))
         ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
-        ax.xaxis.set_minor_formatter(NullFormatter())
+        ax.xaxis.set_minor_locator(NullLocator())
     else:
         bins = 30
         ax.xaxis.set_major_locator(MaxNLocator(nbins=6, integer=True))
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.xaxis.set_minor_locator(NullLocator())
         ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
 
     counts, edges = np.histogram(nonzero, bins=bins)
