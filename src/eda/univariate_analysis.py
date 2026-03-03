@@ -209,49 +209,38 @@ def _set_clean_log_ticks(ax):
     ax.xaxis.set_minor_formatter(NullFormatter())
 
 
-def _plot_zero_inflated_histogram(ax, data, color, title):
+def _plot_histogram(ax, data, color, title):
     """
-    Histogram for a single zero-inflated count column.
+    Histogram for a single count column.
 
-    Design
-    ------
-    - Zeros excluded from histogram entirely
-    - Zero count shown as italic subtitle above title
-    - Non-zero values on log scale (when range > 50x), linear otherwise
-    - Decade-only x-axis ticks (1, 10, 100, 1K...) — no crowding
-    - Dashed median line with label at bottom of line (never overlaps stats panel)
-    - Stats panel at top-right (Median / Mean / IQR / Max)
+    Collision-proof design
+    ----------------------
+    - Zero-inflation shown as first row of stats panel (inside axes).
+      Nothing is rendered outside the axes box — no y > 1 transAxes text.
+    - No separate median label — the stats panel already shows it.
+    - xlim set with explicit left + right AFTER bar() is drawn.
     """
     data    = pd.to_numeric(data, errors="coerce").dropna()
     N       = len(data)
     nonzero = data[data > 0]
     n_zeros = int((data == 0).sum())
 
-    # Title with zero-inflation subtitle above it
-    ax.set_title(title, pad=12)
-    if N > 0 and n_zeros > 0:
-        pct = n_zeros / N * 100
-        ax.text(
-            0.5, 1.06,
-            f"{pct:.1f}% zeros  (n\u202f=\u202f{n_zeros:,})",
-            transform=ax.transAxes,
-            ha="center", va="bottom",
-            fontsize=8, color=TXT_LT, style="italic",
-        )
+    ax.set_title(title)
 
     if N == 0 or len(nonzero) == 0:
-        ax.text(0.5, 0.5, "All values are zero" if N > 0 else "No Data",
+        ax.text(0.5, 0.5, "All zeros" if N > 0 else "No data",
                 ha="center", va="center", transform=ax.transAxes,
                 color=TXT_MED, fontsize=9)
         _style_ax(ax)
         return
 
-    # Decide scale
     use_log = (nonzero.max() / max(nonzero.min(), 1)) > 50
 
     if use_log:
         log_min = int(np.floor(np.log10(nonzero.min())))
         log_max = int(np.ceil(np.log10(nonzero.max())))
+        if log_max <= log_min:
+            log_max = log_min + 1
         bins = np.logspace(log_min, log_max, 30)
         ax.set_xscale("log")
         ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=12))
@@ -264,63 +253,42 @@ def _plot_zero_inflated_histogram(ax, data, color, title):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
 
-    # Draw bars
     counts, edges = np.histogram(nonzero, bins=bins)
     ax.bar(edges[:-1], counts, width=np.diff(edges) * 0.88,
            align="edge", color=color, alpha=0.85, zorder=2)
 
-    # Set clean xlim with padding — MUST come after bar() so autoscale is done
+    # xlim — explicit both bounds, set AFTER bar()
     if use_log:
-        ax.set_xlim(10 ** (log_min - 0.25), 10 ** (log_max + 0.15))
-    
+        ax.set_xlim(10 ** (log_min - 0.5),  10 ** (log_max + 0.15))
+
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
 
-    # Median line — label at bottom so it never hits the top-right stats panel
-    med = nonzero.median()
+    # Median dashed line only — no floating text label
+    med = float(nonzero.median())
     ax.axvline(med, linestyle="--", linewidth=1.5, color=color, zorder=3)
 
-    # Compute where median falls as fraction of the visible x range
-    x0, x1 = ax.get_xlim()
-    if use_log and x0 > 0 and x1 > 0 and med > 0:
-        med_frac = (np.log10(med) - np.log10(x0)) / (np.log10(x1) - np.log10(x0))
-    elif x1 > x0:
-        med_frac = (med - x0) / (x1 - x0)
-    else:
-        med_frac = 0.5
-
-    med_frac  = float(np.clip(med_frac, 0.05, 0.95))
-    label_ha  = "left" if med_frac < 0.65 else "right"
-    label_off = " " if label_ha == "left" else " "
-
-    ax.text(
-        med_frac, 0.03,
-        f"{label_off}{_fmt_k(med, None)}",
-        transform=ax.transAxes,
-        va="bottom", ha=label_ha,
-        fontsize=8, color=color, fontweight="bold",
-    )
-
-    # Stats panel — top-right, monospaced, light background
-    q1, q3 = nonzero.quantile([0.25, 0.75])
-    panel = (
-        f"Median  {_fmt_k(med, None)}\n"
-        f"Mean    {_fmt_k(nonzero.mean(), None)}\n"
-        f"IQR     {_fmt_k(q1, None)}\u2013{_fmt_k(q3, None)}\n"
-        f"Max     {_fmt_k(nonzero.max(), None)}"
-    )
-    ax.text(
-        0.98, 0.98, panel,
-        transform=ax.transAxes, fontsize=8.5,
-        va="top", ha="right", family="monospace",
-        bbox=dict(facecolor="#F9FAFB", edgecolor=RULE,
-                  boxstyle="round,pad=0.45", alpha=0.9),
-    )
+    # Stats panel — zero info as first row when present, fully inside axes
+    q1 = float(nonzero.quantile(0.25))
+    q3 = float(nonzero.quantile(0.75))
+    rows = []
+    if n_zeros > 0:
+        rows.append(f"Zeros   {n_zeros / N * 100:.1f}%  (n={n_zeros:,})")
+    rows += [
+        f"Median  {_fmt_k(med, None)}",
+        f"Mean    {_fmt_k(nonzero.mean(), None)}",
+        f"IQR     {_fmt_k(q1, None)}–{_fmt_k(q3, None)}",
+        f"Max     {_fmt_k(nonzero.max(), None)}",
+    ]
+    ax.text(0.98, 0.98, "\n".join(rows),
+            transform=ax.transAxes, fontsize=8,
+            va="top", ha="right", family="monospace",
+            bbox=dict(facecolor="#F9FAFB", edgecolor=RULE,
+                      boxstyle="round,pad=0.45", alpha=0.92))
 
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax)
 
 
-# ──────────────────────────────────────────────────────────────────
 # 📊  PUBLIC FUNCTIONS
 # ──────────────────────────────────────────────────────────────────
 
@@ -361,7 +329,7 @@ def get_univariate_for_tweets(data_source, save_path=None):
     )
 
     for ax, (col, title) in zip(axes.flat, metrics):
-        _plot_zero_inflated_histogram(ax, df[col], PALETTE[col], title)
+        _plot_histogram(ax, df[col], PALETTE[col], title)
 
     # Extra top margin so the zero subtitles don't get clipped
     plt.tight_layout(h_pad=5.0, w_pad=2.5)
@@ -504,13 +472,13 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_loc  = fig.add_subplot(gs[1, :])
 
     # Follower Count
-    _plot_zero_inflated_histogram(
+    _plot_histogram(
         ax_fol, df["author_followers"],
         PALETTE["author_followers"], "Follower Count",
     )
 
     # Following Count
-    _plot_zero_inflated_histogram(
+    _plot_histogram(
         ax_fing, df["author_following"],
         PALETTE["author_following"], "Following Count",
     )
