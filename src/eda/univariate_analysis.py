@@ -239,7 +239,7 @@ def _plot_histogram(ax, data, color, title):
             log_max = log_min + 1
         bins = np.logspace(log_min, log_max, 30)
         ax.set_xscale("log")
-        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=12))
+        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=6))
         ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
         ax.xaxis.set_minor_locator(NullLocator())
     else:
@@ -265,8 +265,7 @@ def _plot_histogram(ax, data, color, title):
     q3 = float(nonzero.quantile(0.75))
     rows = []
     if n_zeros > 0:
-        rows.append(f"Zeros   {n_zeros / N * 100:.1f}%")
-        rows.append(f"  n = {n_zeros:,}")
+        rows.append(f"Zeros   {n_zeros / N * 100:.1f}%  (n={n_zeros:,})")
     rows += [
         f"Median  {_fmt_k(med, None)}",
         f"Mean    {_fmt_k(nonzero.mean(), None)}",
