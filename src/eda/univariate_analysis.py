@@ -61,8 +61,9 @@ PALETTE = {
 }
 
 LANG_LABELS = {
-    "tl": "Filipino (tl)",
-    "en": "English (en)",
+    "tl":  "Filipino (tl)",
+    "en":  "English (en)",
+    "und": "Undetermined",
 }
 
 LANG_COLORS = {
@@ -96,6 +97,21 @@ def _fmt_k(x, _):
     if x >= 1_000:
         return f"{x/1_000:.0f}K"
     return f"{int(x)}"
+def _fmt_iqr(q1, q3):
+    """Format IQR bounds at the same scale so they never mix e.g. 175-1K."""
+    if q3 >= 1_000_000:
+        return f"{_fmt_k(q1, None)}–{_fmt_k(q3, None)}"
+    elif q3 >= 1_000:
+        # Both in K territory — express q1 in K too
+        v1 = q1 / 1_000
+        v3 = q3 / 1_000
+        fmt1 = f"{v1:.1f}K" if v1 != int(v1) else f"{int(v1)}K"
+        fmt3 = f"{v3:.1f}K" if v3 != int(v3) else f"{int(v3)}K"
+        return f"{fmt1}–{fmt3}"
+    else:
+        return f"{int(q1)}–{int(q3)}"
+
+
 
 
 def _truncate_label(label, max_len=28):
@@ -263,8 +279,10 @@ def _plot_histogram(ax, data, color, title):
 
     # Scale tick font down for wide log ranges to prevent crowding
     n_decades = (log_max - log_min) if use_log else 0
-    tick_fs = 7 if n_decades > 4 else 8
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=tick_fs)
+    if use_log and n_decades > 4:
+        plt.setp(ax.get_xticklabels(), rotation=90, ha="right", fontsize=7)
+    else:
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
 
     med = float(nonzero.median())
 
@@ -277,7 +295,7 @@ def _plot_histogram(ax, data, color, title):
     rows += [
         f"Median  {_fmt_k(med, None)}",
         f"Mean    {_fmt_k(nonzero.mean(), None)}",
-        f"IQR     {_fmt_k(q1, None)}–{_fmt_k(q3, None)}",
+        f"IQR     {_fmt_iqr(q1, q3)}",
         f"Max     {_fmt_k(nonzero.max(), None)}",
     ]
     ax.text(0.98, 0.98, "\n".join(rows),
