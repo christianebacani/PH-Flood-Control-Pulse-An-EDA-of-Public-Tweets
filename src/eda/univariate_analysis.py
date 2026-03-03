@@ -239,7 +239,7 @@ def _plot_histogram(ax, data, color, title):
             log_max = log_min + 1
         bins = np.logspace(log_min, log_max, 30)
         ax.set_xscale("log")
-        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=6))
+        ax.xaxis.set_major_locator(LogLocator(base=10.0, subs=[1.0], numticks=12))
         ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
         ax.xaxis.set_minor_locator(NullLocator())
     else:
@@ -256,7 +256,10 @@ def _plot_histogram(ax, data, color, title):
     if use_log:
         ax.set_xlim(10 ** (log_min - 0.5),  10 ** (log_max + 0.15))
 
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
+    # Scale tick font down for wide log ranges to prevent crowding
+    n_decades = (log_max - log_min) if use_log else 0
+    tick_fs = 7 if n_decades > 4 else 8
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=tick_fs)
 
     med = float(nonzero.median())
 
