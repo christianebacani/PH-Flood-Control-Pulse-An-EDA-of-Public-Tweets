@@ -87,7 +87,7 @@ plt.rcParams.update({
 def _fmt_k(x, _):
     """Format numbers as K / M for axis ticks."""
     if x >= 1_000_000:
-        v = x/1_000_000; return f"{v:.1f}M" if v < 10 else f"{v:.0f}M"
+        v = x/1_000_000; return f"{v:.1f}M" if v < 10 and v != int(v) else f"{int(v)}M"
     if x >= 1_000:
         return f"{x/1_000:.0f}K"
     return f"{int(x)}"
