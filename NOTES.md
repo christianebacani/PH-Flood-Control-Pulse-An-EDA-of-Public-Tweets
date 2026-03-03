@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Check the feedback of the claude.ai to check if the given output is already ready to be an output for a professional portfolio, if yes fix the README.md
+    - Integrate the new analysis to the README.md before moving on to temporal analysis
