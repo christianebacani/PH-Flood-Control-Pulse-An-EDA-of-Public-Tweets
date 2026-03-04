@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Integrate the new analysis to the README.md before moving on to temporal analysis
+    - Fix the visual bug at the authors distribution univariate analysis output
