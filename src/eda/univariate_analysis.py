@@ -277,7 +277,8 @@ def _plot_histogram(ax, data, color, title):
 
     # xlim — explicit both bounds, set AFTER bar()
     if use_log:
-        ax.set_xlim(10 ** (log_min - 0.5),  10 ** (log_max + 0.15))
+        xlim_left = 10 ** (log_min - 0.3)
+        ax.set_xlim(xlim_left, 10 ** (log_max + 0.15))
 
     # Scale tick font down for wide log ranges to prevent crowding
     n_decades = (log_max - log_min) if use_log else 0
@@ -293,18 +294,19 @@ def _plot_histogram(ax, data, color, title):
     q3 = float(nonzero.quantile(0.75))
     rows = []
     if n_zeros > 0:
-        rows.append(f"Zeros   {n_zeros / N * 100:.1f}%  (n={n_zeros:,})")
+        rows.append(f"Zeros  {n_zeros / N * 100:.1f}%  (n={n_zeros:,})")
     rows += [
-        f"Median  {_fmt_k(med, None)}",
-        f"Mean    {_fmt_k(nonzero.mean(), None)}",
-        f"IQR     {_fmt_iqr(q1, q3)}",
-        f"Max     {_fmt_k(nonzero.max(), None)}",
+        f"Median {_fmt_k(med, None)}",
+        f"Mean   {_fmt_k(nonzero.mean(), None)}",
+        f"IQR    {_fmt_iqr(q1, q3)}",
+        f"Max    {_fmt_k(nonzero.max(), None)}",
     ]
-    ax.text(0.98, 0.98, "\n".join(rows),
-            transform=ax.transAxes, fontsize=8,
+    ax.text(0.98, 0.96, "\n".join(rows),
+            transform=ax.transAxes, fontsize=7.5,
             va="top", ha="right", family="monospace",
+            zorder=5,
             bbox=dict(facecolor="#F9FAFB", edgecolor=RULE,
-                      boxstyle="round,pad=0.45", alpha=0.92))
+                      boxstyle="round,pad=0.4", alpha=0.95))
 
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax)
