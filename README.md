@@ -1,67 +1,161 @@
 # PH Flood Control Pulse: An Exploratory Data Analysis of Public Tweets
 
-When Typhoon season hits the Philippines, one of the loudest conversations on Twitter isn't about the weather — it's about the government. This EDA explores public tweets from well-known Twitter accounts discussing the DPWH (Department of Public Works and Highways) and its flood control projects, starting with the most important question before any analysis: **can we trust this data?**
+When typhoon season hits the Philippines, one of the loudest conversations on social media isn't about the weather — it's about the government. This project explores nearly **200,000 public tweets** from influential Twitter/X accounts discussing the **DPWH (Department of Public Works and Highways)** and its flood control projects.
 
-> 📦 **Source:** [DPWH Flood Control Projects 2025 — Kaggle](https://www.kaggle.com/datasets/bwandowando/tweets-on-dpwh-and-flood-control-projects-2025)
+Before diving into patterns and trends, this EDA answers the most important question first: **can we trust this data?** Every chart, every number, and every conclusion in an analysis is only as reliable as the data behind it — so we start there.
 
-| | Dataset | Rows | Columns | Contains |
-|---|---|---|---|---|
-| 1 | `for_export_dpwh_floodcontrol` | 195,744 | 16 | Tweets — text, engagement metrics, timestamps, language |
-| 2 | `well_known_authors_dpwh_floodcontrol` | 227 | 8 | Authors — profiles, follower counts, verification status |
-
-Each dataset is examined across four steps: **shape → schema → missing data → data quality.**
+> 📦 **Data Source:** [DPWH Flood Control Projects 2025 — Kaggle](https://www.kaggle.com/datasets/bwandowando/tweets-on-dpwh-and-flood-control-projects-2025)
 
 ---
 
-## Dataset 1: Tweets
+## What's in the Data?
 
-### 1.1 Dataset Shape
+Two datasets work together to tell the full story — one about the **people** behind the tweets, one about the **tweets** themselves.
+
+| # | Dataset | Rows | Columns | What it contains |
+|---|---|---|---|---|
+| 1 | `well_known_authors_dpwh_floodcontrol` | 227 | 8 | Author profiles — follower counts, location, verification status |
+| 2 | `for_export_dpwh_floodcontrol` | 195,744 | 16 | Tweets — text, engagement metrics, timestamps, language |
+
+Each dataset goes through four inspection steps before any analysis begins:
+
+> **Shape** → how big is it? &nbsp;·&nbsp; **Schema** → what types are the columns? &nbsp;·&nbsp; **Missing Data** → what's absent and why? &nbsp;·&nbsp; **Data Quality** → what needs fixing?
+
+---
+
+## Dataset 1: Authors
+
+### Shape
+
+![Dataset Shape](output/well_known_authors_dpwh_floodcontrol_dataset_shape.png)
+
+**227 authors generated nearly 200,000 tweets.** This is a small, curated group of influential voices — not a random sample of everyday Twitter users. Think news outlets, government agencies, and public figures, not anonymous accounts.
+
+---
+
+### Schema
+
+![Column Names and Data Types](output/well_known_authors_dpwh_floodcontrol_column_names_and_dtypes.png)
+
+The schema is simple: **5 text columns, 2 numeric, 1 boolean** — covering identity, reach, and verification status. Two columns have type issues that need fixing before analysis, addressed in the Data Quality section below.
+
+---
+
+### Missing Data
+
+![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
+
+**2 of 8 columns have missing values — and both are missing by choice, not error.** This is an important distinction. A blank field that exists because someone chose not to fill it in is fundamentally different from one that's blank because something went wrong in data collection.
+
+#### `author_location` — 40 missing (17.6%)
+
+Twitter's location field is optional. These 40 authors simply left it blank.
+
+> ✅ **Decision: Keep and fill with `"Unknown"`.** Location can't be guessed — a placeholder lets us keep these rows for every other analysis.
+
+#### `author_profile_bio_description` — 6 missing (2.6%)
+
+6 authors chose not to write a bio. This is the least critical field in the dataset.
+
+> ✅ **Decision: Keep and fill with `"No bio provided"`.** Only 6 rows affected. No meaningful impact on analysis.
+
+**All other 6 columns are 100% complete.** Nothing needs to be removed.
+
+---
+
+### Data Quality
+
+![Data Quality Report](output/well_known_authors_dpwh_floodcontrol_data_quality.png)
+
+**0 critical issues. 3 warnings** — all minor and straightforward to fix.
+
+#### 🟡 Wrong Data Types — 2 columns
+
+Some columns are stored in a format that looks fine on screen but breaks calculations. A date stored as plain text, for example, can be read but can't be sorted or used to calculate time differences.
+
+| Column | Stored as | Should be | Why it matters |
+|---|---|---|---|
+| `author_createdAt` | `str` (text) | `datetime64` (date) | Can't calculate account age without converting this first |
+| `author_isBlueVerified` | mixed `bool`/`str` | `bool` (true/false) | Inconsistent format — filters and comparisons will silently fail |
+
+```python
+authors["author_createdAt"] = pd.to_datetime(authors["author_createdAt"], utc=True)
+authors["author_isBlueVerified"] = authors["author_isBlueVerified"].astype(bool)
+```
+
+#### 🟡 Inconsistent Values — 1 column
+
+**`author_location`** — 16 entries (7%) are technically filled but not usable as locations. These include things like `"Earth"`, `"WhatsApp & Telegram"`, and social media handles. They look like data, but they're not geographic information.
+
+These get recoded as `"Unknown"` alongside the genuinely blank entries. After cleaning, **170 of 227 authors (74.9%)** have a real, usable location.
+
+---
+
+### Univariate Analysis — Author Profiles
+
+![Author Profiles](output/well_known_authors_dpwh_floodcontrol_author_distribution.png)
+
+Four things stand out from the distributions.
+
+**These are not ordinary users.** The median follower count is 140,000 — meaning half the accounts in this dataset have more than 140K followers. The mean jumps to 1.1M because a small number of mega-accounts (up to 25M followers) pull the average up dramatically. This is the behavior of media outlets and institutional accounts, not personal profiles.
+
+**They follow people deliberately.** A median following count of 508, with most accounts between 175 and 1,100 accounts followed, suggests these authors curate their feeds. They're not follow-everyone accounts.
+
+**More than half are officially verified.** 51.5% hold Blue Verified status — an unusually high rate compared to the general Twitter population. This reinforces the institutional nature of the dataset: these are credentialed accounts that Twitter itself has reviewed.
+
+**The conversation is geographically concentrated.** Manila and its surrounding regions dominate the location data, which makes sense for a dataset centered on a national infrastructure agency headquartered in Metro Manila. The 43.2% "Others" category is a reminder that self-reported location fields are messy — the same place gets written dozens of different ways.
+
+---
+
+## Dataset 2: Tweets
+
+### Shape
 
 ![Dataset Shape](output/for_export_dpwh_floodcontrol_dataset_shape.png)
 
-**195,744 tweets across 16 columns.** Large enough to find meaningful patterns in engagement, language, and time — each row carries the full context of a tweet beyond just its text.
+**195,744 tweets across 16 columns.** Large enough to surface real patterns in how people engage with flood control topics over time — and rich enough, with 9 numeric engagement columns, to go well beyond just counting tweets.
 
 ---
 
-### 1.2 Column Names & Data Types
+### Schema
 
 ![Column Names and Data Types](output/for_export_dpwh_floodcontrol_column_names_and_dtypes.png)
 
-**9 of 16 columns are engagement metrics** (`int64`), making this a quantitatively rich dataset. Four columns have type issues that need fixing before analysis — addressed in Section 1.4.
+**9 of 16 columns are engagement metrics** (retweets, likes, views, quotes, replies, bookmarks, and more) stored as integers — making this a quantitatively dense dataset. Four columns have type issues flagged for fixing in the Data Quality section.
 
 ---
 
-### 1.3 Missing Data Analysis
+### Missing Data
 
 ![Missing Data](output/for_export_dpwh_floodcontrol_missing_data.png)
 
-**Only 2 of 16 columns have missing values — and both are missing by design, not by accident.** Not all nulls are problems. Here, the absence of a value is itself meaningful information.
+**Only 2 of 16 columns have missing values — and both are supposed to be empty for most rows.** Not every blank field is a problem. Sometimes absence is the data.
 
-#### `quoted_pseudo_id` — 170,346 missing (87%) · `Structurally Missing`
+#### `quoted_pseudo_id` — 170,346 missing (87%)
 
-A quoted tweet ID can only exist if the tweet is quoting another. **87% of tweets are original posts** — so this field is empty for the vast majority of rows, and that's exactly correct.
+A quote tweet ID can only exist if the tweet is quoting another tweet. Since **87% of tweets in this dataset are original posts**, this field is correctly empty for the vast majority of rows.
 
-> **Decision: Keep as-is.** Filling it would be wrong. Removing these rows would delete 87% of the dataset.
+> ✅ **Decision: Keep as-is.** Filling it would introduce false information. Removing these rows would delete 87% of the dataset.
 
-#### `pseudo_inReplyToUsername` — 123,213 missing (62.9%) · `Missing At Random (MAR)`
+#### `pseudo_inReplyToUsername` — 123,213 missing (62.9%)
 
-This field is always empty when `isReply = False` and always filled when `isReply = True` — the two columns move in perfect sync. Because missingness is fully explained by an observable column, this is **MAR**.
+This field is always blank when `isReply = False` and always filled when `isReply = True`. The two columns move in perfect lockstep. The missingness is fully explained by another column — this is textbook **Missing At Random (MAR)**.
 
-> **Decision: Keep as-is.** No imputation needed. Removal would eliminate every original (non-reply) tweet.
+> ✅ **Decision: Keep as-is.** No guessing needed. Removing these rows would delete every original tweet.
 
-**The remaining 14 columns are fully complete.** No rows need to be removed.
+**All remaining 14 columns are 100% complete.** The dataset is structurally clean.
 
 ---
 
-### 1.4 Data Quality Report
+### Data Quality
 
 ![Data Quality Report](output/for_export_dpwh_floodcontrol_data_quality.png)
 
-**1 issue, 6 warnings** — none are showstoppers. All are standard preprocessing fixes.
+**1 critical issue. 6 warnings** — none are blockers. All are standard, well-understood fixes.
 
 #### 🔴 Duplicate Rows — 1 row
 
-One tweet appears twice in the dataset, almost certainly a scraping overlap. Negligible impact but should be dropped before aggregation.
+One tweet appears twice, most likely a scraping overlap at a collection boundary. The impact is negligible, but duplicates should always be removed before counting or aggregating.
 
 ```python
 df = df.drop_duplicates(subset=["pseudo_id"])
@@ -69,14 +163,12 @@ df = df.drop_duplicates(subset=["pseudo_id"])
 
 #### 🟡 Wrong Data Types — 4 columns
 
-Four columns are stored in the wrong format. Think of it like storing a date as plain text — readable, but useless for calculations until fixed.
-
 | Column | Stored as | Should be | Why it matters |
 |---|---|---|---|
-| `createdAt` | `str` | `datetime64` | Can't sort by time or plot trends without this fix |
-| `isReply` | `bool / str` | `bool` | Mixed serialisation — comparisons will silently fail |
-| `pseudo_inReplyToUsername` | `float64` | `str` | IDs coerced to decimals due to NaN presence — loses precision |
-| `author_isBlueVerified` | `bool / str` | `bool` | Same mixed serialisation issue as `isReply` |
+| `createdAt` | `str` (text) | `datetime64` (date) | Can't sort by time or plot trends without this |
+| `isReply` | mixed `bool`/`str` | `bool` (true/false) | Inconsistent format causes silent comparison failures |
+| `pseudo_inReplyToUsername` | `float64` (decimal) | `str` (text) | IDs got converted to decimals because of blank rows — loses precision |
+| `author_isBlueVerified` | mixed `bool`/`str` | `bool` (true/false) | Same issue as `isReply` |
 
 ```python
 df["createdAt"] = pd.to_datetime(df["createdAt"], utc=True)
@@ -87,112 +179,72 @@ df["pseudo_inReplyToUsername"] = df["pseudo_inReplyToUsername"].astype("Int64").
 
 #### 🟡 Inconsistent Values — 2 columns
 
-**`lang`** — 410 rows (0.21%) carry the code `'und'` (undetermined), outside the expected `{'tl', 'en'}`. Exclude or recode as `'other'` in language analysis.
+**`lang`** — 410 rows (0.2%) carry the code `und` (undetermined — the language detector couldn't classify the tweet). These are treated as a separate category rather than forced into Filipino or English.
 
-| Language | Count | % |
+| Language | Count | Share |
 |---|---|---|
-| `tl` Filipino | 126,090 | 64.4% |
-| `en` English | 69,244 | 35.4% |
-| `und` Undetermined | 410 | 0.2% |
+| Filipino (`tl`) | 126,090 | 64.4% |
+| English (`en`) | 69,244 | 35.4% |
+| Undetermined (`und`) | 410 | 0.2% |
 
-**`pseudo_inReplyToUsername`** — 72,531 non-null values stored as `float64`. This resolves automatically once the column is cast to `str` (see fix above).
-
----
-
-## Dataset 2: Authors
-
-### 2.1 Dataset Shape
-
-![Dataset Shape](output/well_known_authors_dpwh_floodcontrol_dataset_shape.png)
-
-**227 authors drove nearly 200,000 tweets.** This is a small, curated group of influential voices — not a random cross-section of Twitter.
+**`pseudo_inReplyToUsername`** — stored as decimal numbers due to blank rows being misread. Resolved automatically by the type fix above.
 
 ---
 
-### 2.2 Column Names & Data Types
+### Univariate Analysis — Tweet Engagement
 
-![Column Names and Data Types](output/well_known_authors_dpwh_floodcontrol_column_names_and_dtypes.png)
+![Tweet Engagement](output/for_export_dpwh_floodcontrol_engagement_distribution.png)
 
-**5 `str` · 2 `int64` · 1 `bool`** — a simple schema covering identity, reach, and context. Two columns have type issues (`author_createdAt`, `author_isBlueVerified`) addressed in Section 2.4.
+The six engagement distributions tell a single, consistent story: **most people read and do nothing.**
 
----
+Zero-inflation is high across every metric — 78.5% of tweets got zero retweets, 92.6% got zero quotes, 90.5% got zero bookmarks. Views are the exception (near-zero blank rate) because the platform records a view the moment someone scrolls past a tweet. Seeing is automatic. Engaging is a choice — and most people don't.
 
-### 2.3 Missing Data Analysis
+For the tweets that did receive engagement, the distributions are heavily skewed to the right. The gap between the median and the mean is the key signal: Retweets (median 2, mean 51), Likes (median 3, mean 103). A handful of viral tweets are pulling the averages far above what a typical post receives.
 
-![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
-
-**2 of 8 columns have missing values — both are Missing Not At Random (MNAR).** Unlike the tweets dataset, these fields *could* be filled — the authors simply chose not to. When missingness is driven by the person's own decision rather than anything we can measure, it's MNAR.
-
-#### `author_location` — 40 missing (17.6%) · `MNAR`
-
-Twitter's location field is optional. 40 authors left it blank by choice.
-
-> **Decision: Retain; fill with `"Unknown"`.** We can't guess someone's location — filling with a placeholder preserves the row for other analysis.
-
-#### `author_profile_bio_description` — 6 missing (2.6%) · `MNAR`
-
-6 authors chose not to write a bio.
-
-> **Decision: Retain; fill with `"No bio provided"`.** Only 6 rows. Bio is non-critical; a placeholder is appropriate.
-
-**The remaining 6 columns are fully complete.** No rows need to be removed.
+This is exactly what you'd expect from institutional accounts covering a government infrastructure topic: steady, low-engagement activity punctuated by spikes when a typhoon hits, a flood goes viral, or a political controversy erupts.
 
 ---
 
-### 2.4 Data Quality Report
+### Univariate Analysis — Tweet Categoricals
 
-![Data Quality Report](output/well_known_authors_dpwh_floodcontrol_data_quality.png)
+![Tweet Categoricals](output/for_export_dpwh_floodcontrol_categorical_distribution.png)
 
-**0 issues, 3 warnings.** The author dataset is structurally sound — just two type fixes and one value cleanup needed.
+**62.9% of tweets are original posts, not replies.** This is a broadcasting dataset — accounts publishing statements, not having conversations. Authors are speaking *about* DPWH flood control, not necessarily speaking *to* each other.
 
-#### 🟡 Wrong Data Types — 2 columns
+**Filipino (Tagalog) accounts for 64.4% of tweets, English 35.4%.** The bilingual split reflects how Philippine public discourse works: local issues get discussed in Filipino first, with English commentary layered on top. On a topic as local as national flood infrastructure, Filipino dominates.
 
-| Column | Stored as | Should be | Why it matters |
-|---|---|---|---|
-| `author_createdAt` | `str` | `datetime64` | Can't compute account age without this fix |
-| `author_isBlueVerified` | `bool / str` | `bool` | Mixed serialisation — normalise before filtering |
+**22.2% of tweets come from verified accounts** — lower than the 51.5% verification rate in the authors dataset. This means the verified accounts, despite being the most prominent voices, are actually responsible for a smaller share of the total volume. The unverified majority are doing more of the posting.
 
-```python
-authors["author_createdAt"] = pd.to_datetime(authors["author_createdAt"], utc=True)
-authors["author_isBlueVerified"] = authors["author_isBlueVerified"].astype(bool)
-```
+---
 
-#### 🟡 Inconsistent Values — 1 column
+### Univariate Analysis — Tweet Volume Over Time
 
-**`author_location`** — 16 entries (7.05%) are non-geographic: platform handles, URLs, and colloquialisms like `"Earth"` and `"WhatsApp & Telegram"`. These should be recoded as `"Unknown"` alongside the actual missing values. After cleaning, **170 authors (74.9%)** have a usable location.
+![Tweet Volume Over Time](output/for_export_dpwh_floodcontrol_temporal_distribution.png)
+
+The timeline has one story that drowns out everything else: **September 21 was an event.**
+
+A single day produced roughly 25,000 tweets — approximately 10 times the daily baseline. The follow-on spikes on September 23 and September 25 show the conversation didn't collapse immediately; it had momentum. Outside this September cluster, volume returns to a low, steady hum through October and November 2025.
+
+The Filipino-language layer drives the spike almost entirely. English engagement rises alongside it but at a noticeably lower amplitude — consistent with Filipino-language media breaking the story first, with English-language accounts picking it up afterward. The pattern suggests a single real-world event triggered the surge, not an organic gradual build.
 
 ---
 
 ## Preprocessing Summary
 
-Before any further analysis, apply these fixes to both datasets:
+All fixes applied before any further analysis proceeds. Both datasets are clean and ready.
 
-### Tweets
-
-```python
-# Drop duplicate
-df = df.drop_duplicates(subset=["pseudo_id"])
-
-# Fix types
-df["createdAt"] = pd.to_datetime(df["createdAt"], utc=True)
-df["isReply"] = df["isReply"].astype(bool)
-df["author_isBlueVerified"] = df["author_isBlueVerified"].astype(bool)
-df["pseudo_inReplyToUsername"] = df["pseudo_inReplyToUsername"].astype("Int64").astype(str)
-
-# Recode undetermined language
-df["lang"] = df["lang"].replace("und", "other")
-```
-
-### Authors
+### Dataset 1 — Authors
 
 ```python
-# Fix types
+# Fix data types
 authors["author_createdAt"] = pd.to_datetime(authors["author_createdAt"], utc=True)
 authors["author_isBlueVerified"] = authors["author_isBlueVerified"].astype(bool)
 
-# Standardise locations
-invalid_locations = ["Earth", "Around The World", "facebook.com/aidelacruzonline",
-                     "Abbott Elementary", "WhatsApp & Telegram"]
+# Standardise locations — replace non-geographic entries and blanks
+invalid_locations = [
+    "Earth", "Around The World", "facebook.com/aidelacruzonline",
+    "Abbott Elementary", "WhatsApp & Telegram"
+]
 authors["author_location"] = authors["author_location"].replace(invalid_locations, "Unknown")
 authors["author_location"] = authors["author_location"].fillna("Unknown")
 
@@ -202,4 +254,22 @@ authors["author_profile_bio_description"] = (
 )
 ```
 
-Both datasets are now clean and ready for analysis.
+### Dataset 2 — Tweets
+
+```python
+# Remove duplicate tweet
+df = df.drop_duplicates(subset=["pseudo_id"])
+
+# Fix data types
+df["createdAt"] = pd.to_datetime(df["createdAt"], utc=True)
+df["isReply"] = df["isReply"].astype(bool)
+df["author_isBlueVerified"] = df["author_isBlueVerified"].astype(bool)
+df["pseudo_inReplyToUsername"] = df["pseudo_inReplyToUsername"].astype("Int64").astype(str)
+
+# Recode undetermined language
+df["lang"] = df["lang"].replace("und", "other")
+```
+
+---
+
+*Analysis conducted using Python · pandas · matplotlib. All visualisations generated programmatically for full reproducibility.*
