@@ -90,9 +90,9 @@ LANG_LABELS = {
 }
 
 LANG_COLORS = {
-    "Filipino (tl)": "#3B82F6",
-    "English (en)":  "#14B8A6",
-    "Other":         "#CBD5E1",
+    "Filipino (tl)": "#60A5FA",   # lighter blue — full opacity
+    "English (en)":  "#34D399",   # lighter teal — full opacity
+    "Other":         "#E2E8F0",   # lightest slate
 }
 
 plt.rcParams.update({
@@ -252,7 +252,7 @@ def _validate_columns(df, required):
         raise ValueError(f"Missing required columns: {missing}")
 
 
-def _plot_histogram(ax, data, color, title):
+def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
     """
     Fixes B1–B3 applied here.
     """
@@ -262,6 +262,7 @@ def _plot_histogram(ax, data, color, title):
     n_zeros = int((data == 0).sum())
 
     ax.set_title(title)
+    ax.set_xlabel(f"{title} Count", fontsize=9, color=TXT_MED, labelpad=4)
 
     if N == 0 or len(nonzero) == 0:
         ax.text(0.5, 0.5, "All zeros" if N > 0 else "No data",
@@ -310,12 +311,18 @@ def _plot_histogram(ax, data, color, title):
 
     med = float(nonzero.median())
 
-    # B1 + B2: near-black median line, only drawn when visually meaningful
-    xlim_left_val = ax.get_xlim()[0]
+    # B1 + B2: median line — suppress when median ≤ 5 on a log-scale chart.
+    # At that position (x=1–5 out of 1–100K) the line is one pixel from the
+    # y-axis spine and adds visual noise without readable information.
+    xlim_left_val  = ax.get_xlim()[0]
+    xlim_right_val = ax.get_xlim()[1]
     if use_log:
-        med_visible = med > xlim_left_val * 2.0   # must be at least 1 tick in from spine
+        log_span  = np.log10(xlim_right_val) - np.log10(xlim_left_val)
+        med_frac  = (np.log10(max(med, 1e-9)) - np.log10(xlim_left_val)) / log_span
+        med_visible = med_frac > 0.12   # must occupy at least 12% of log span
     else:
-        med_visible = med > xlim_left_val + (nonzero.max() - xlim_left_val) * 0.02
+        lin_span    = xlim_right_val - xlim_left_val
+        med_visible = (med - xlim_left_val) / lin_span > 0.05
     if med_visible:
         ax.axvline(med, color=MEDIAN_LINE, linewidth=1.2, linestyle="--",
                    alpha=0.70, zorder=4)
@@ -341,7 +348,7 @@ def _plot_histogram(ax, data, color, title):
                       boxstyle="round,pad=0.4", alpha=0.95))
 
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    ax.set_ylabel("Number of Tweets", fontsize=8.5, color=TXT_MED)
+    ax.set_ylabel(ylabel, fontsize=8.5, color=TXT_MED)
     _style_ax(ax)
 
 
@@ -372,7 +379,7 @@ def get_univariate_for_authors(data_source, save_path=None):
     # C3: left margin widened so long y-axis labels don't clip
     gs = gridspec.GridSpec(
         2, 3, figure=fig,
-        top=0.90, bottom=0.07, left=0.17, right=0.97,   # widened for long ytick labels
+        top=0.90, bottom=0.07, left=0.20, right=0.97,   # widened for long ytick labels
         hspace=0.38, wspace=0.35,
         height_ratios=[1, 1.1],
     )
@@ -381,8 +388,8 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_ver  = fig.add_subplot(gs[0, 2])
     ax_loc  = fig.add_subplot(gs[1, :])
 
-    _plot_histogram(ax_fol,  df["author_followers"], PALETTE["author_followers"], "Follower Count")
-    _plot_histogram(ax_fing, df["author_following"], PALETTE["author_following"], "Following Count")
+    _plot_histogram(ax_fol,  df["author_followers"], PALETTE["author_followers"], "Follower Count",  ylabel="Number of Authors")
+    _plot_histogram(ax_fing, df["author_following"], PALETTE["author_following"], "Following Count", ylabel="Number of Authors")
 
     # Verification bar
     vcounts = (
@@ -395,12 +402,14 @@ def get_univariate_for_authors(data_source, save_path=None):
     for bar, val in zip(bars, vcounts.values):
         ax_ver.text(
             bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + N * 0.012,
+            bar.get_height() + vcounts.max() * 0.02,
             f"{val:,} ({val/N*100:.1f}%)",
             ha="center", va="bottom", fontsize=9, color=TXT_MED,
         )
     ax_ver.set_title("Author Verification")
-    ax_ver.set_ylim(0, vcounts.max() * 1.20)
+    ax_ver.set_ylabel("Number of Authors", fontsize=9, color=TXT_MED)
+    ax_ver.set_xlabel("Verification Status", fontsize=9, color=TXT_MED)
+    ax_ver.set_ylim(0, vcounts.max() * 1.22)
     ax_ver.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax_ver)
 
@@ -438,6 +447,8 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_loc.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax_loc, grid_axis="x")
 
+    # Protect the widened left margin from tight_layout shrinking it back
+    plt.subplots_adjust(left=0.20)
     _safe_show(fig, save_path)
 
 
@@ -512,6 +523,7 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
         )
     ax.set_title("Reply Status")
     ax.set_ylabel("Number of Tweets", fontsize=9, color=TXT_MED)
+    ax.set_xlabel("Tweet Type", fontsize=9, color=TXT_MED)
     ax.set_ylim(0, counts.max() * 1.22)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax)
@@ -526,10 +538,22 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
         lang_counts.index[::-1], lang_counts.values[::-1],
         color=C_LANG, height=0.55, zorder=2,
     )
-    label_offset = lang_counts.max() * 0.01
+    label_offset  = lang_counts.max() * 0.01
+    # Threshold: bars < 1% of the max are visually near-invisible on this scale.
+    # For those, enforce a minimum display width so the bar is at least 3px wide,
+    # and shift the label to start from a small fixed offset instead.
+    min_visible   = lang_counts.max() * 0.005   # 0.5% of max → minimum bar stub
     for bar, val in zip(bars, lang_counts.values[::-1]):
+        display_x = max(val, min_visible)
+        # If bar was too small, redraw it at min_visible width in a muted colour
+        if val < min_visible:
+            ax.barh(
+                bar.get_y() + bar.get_height() / 2,
+                min_visible, height=0.55,
+                left=0, color=C_LANG, alpha=0.35, zorder=3,
+            )
         ax.text(
-            val + label_offset,
+            display_x + label_offset,
             bar.get_y() + bar.get_height() / 2,
             f"{val:,} ({val/N*100:.1f}%)",
             va="center", fontsize=9, color=TXT_MED,
@@ -558,6 +582,7 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
         )
     ax.set_title("Author Verification")
     ax.set_ylabel("Number of Tweets", fontsize=9, color=TXT_MED)
+    ax.set_xlabel("Verification Status", fontsize=9, color=TXT_MED)
     ax.set_ylim(0, vcounts.max() * 1.22)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax)
