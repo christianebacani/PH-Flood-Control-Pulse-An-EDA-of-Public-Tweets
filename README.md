@@ -69,15 +69,24 @@ The schema is simple: **5 text columns, 2 numeric, 1 boolean** — covering iden
 
 **2 of 8 columns have missing values — and both are missing by choice, not error.** This is an important distinction. A blank field that exists because someone chose not to fill it in is fundamentally different from one that's blank because something went wrong in data collection.
 
+> **Quick reference — the three types of missingness:**
+> - **MCAR (Missing Completely At Random)** — the blank has nothing to do with the data itself. A survey respondent skipped a question by accident. No pattern, no bias.
+> - **MAR (Missing At Random)** — the blank is related to *other columns* but not the missing column's own value. A user didn't fill in their city, but we can see they're a verified account — the missingness is explainable.
+> - **MNAR (Missing Not At Random)** — the blank is related to the value itself. High-earning users skipping the income field. The most dangerous type because it introduces silent bias.
+
 #### `author_location` — 40 missing (17.6%)
 
-Twitter's location field is optional. These 40 authors simply left it blank.
+**Type: MCAR — Missing Completely At Random**
 
-> ✅ **Decision: Keep and fill with `"Unknown"`.** Location can't be guessed — a placeholder lets us keep these rows for every other analysis.
+Twitter's location field is entirely optional and has no bearing on any other column. Authors who left it blank show no systematic pattern — they span all follower ranges, verification statuses, and activity levels. The absence is random individual choice, not a signal about who they are.
+
+> ✅ **Decision: Keep and fill with `"Unknown"`.** Location can't be inferred from other columns — a placeholder preserves these rows for every other analysis without fabricating data.
 
 #### `author_profile_bio_description` — 6 missing (2.6%)
 
-6 authors chose not to write a bio. This is the least critical field in the dataset.
+**Type: MCAR — Missing Completely At Random**
+
+6 authors chose not to write a bio. Like location, this is a discretionary field with no structural connection to any other column. At 2.6% of rows, the impact on any downstream analysis is negligible.
 
 > ✅ **Decision: Keep and fill with `"No bio provided"`.** Only 6 rows affected. No meaningful impact on analysis.
 
@@ -153,15 +162,24 @@ Four things stand out from the distributions.
 
 **Only 2 of 16 columns have missing values — and both are supposed to be empty for most rows.** Not every blank field is a problem. Sometimes absence is the data.
 
+> **Quick reference — the three types of missingness:**
+> - **MCAR (Missing Completely At Random)** — the blank has nothing to do with the data itself. No pattern, no bias.
+> - **MAR (Missing At Random)** — the blank is explainable by *other columns*, not by the missing value itself. Predictable and safe to handle.
+> - **MNAR (Missing Not At Random)** — the blank is tied to the value that's missing. The most dangerous type because it introduces silent bias into any analysis.
+
 #### `quoted_pseudo_id` — 170,346 missing (87%)
 
-A quote tweet ID can only exist if the tweet is quoting another tweet. Since **87% of tweets in this dataset are original posts**, this field is correctly empty for the vast majority of rows.
+**Type: MAR — Missing At Random**
+
+A quote tweet ID can only exist if the tweet is quoting another tweet. Whether this field is blank is entirely determined by another column — `isReply` and the structural nature of the tweet itself. The value isn't missing because of a collection error or user choice; it's missing because **87% of tweets are original posts** and original posts structurally cannot have a quote ID. The missingness is fully explained by observable data elsewhere in the dataset.
 
 > ✅ **Decision: Keep as-is.** Filling it would introduce false information. Removing these rows would delete 87% of the dataset.
 
 #### `pseudo_inReplyToUsername` — 123,213 missing (62.9%)
 
-This field is always blank when `isReply = False` and always filled when `isReply = True`. The two columns move in perfect lockstep. The missingness is fully explained by another column — this is textbook **Missing At Random (MAR)**.
+**Type: MAR — Missing At Random**
+
+This field is always blank when `isReply = False` and always filled when `isReply = True`. The two columns move in perfect lockstep — knowing the value of `isReply` tells you with certainty whether this field will be empty. That's the definition of MAR: the missingness is fully explained by another observed column, not by the missing value itself. There is no hidden pattern, no data collection failure, no bias introduced.
 
 > ✅ **Decision: Keep as-is.** No guessing needed. Removing these rows would delete every original tweet.
 
