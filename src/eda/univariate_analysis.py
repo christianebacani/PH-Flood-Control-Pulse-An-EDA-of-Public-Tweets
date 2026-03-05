@@ -158,7 +158,7 @@ def _fmt_iqr(q1, q3):
         return f"{fmt1}–{fmt3}"
 
 
-def _truncate_label(label, max_len=32):
+def _truncate_label(label, max_len=28):
     """
     Truncate at a word boundary so we never cut mid-word.
     e.g. 'National Capital Region, Republic of the Philippines'
@@ -423,7 +423,7 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_ver.set_title("Author Verification")
     ax_ver.set_ylabel("Number of Authors", fontsize=9, color=TXT_MED)
     ax_ver.set_xlabel("Verification Status", fontsize=9, color=TXT_MED)
-    ax_ver.set_ylim(0, vcounts.max() * 1.22)
+    ax_ver.set_ylim(0, vcounts.max() * 1.30)
     ax_ver.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax_ver)
 
@@ -446,6 +446,9 @@ def get_univariate_for_authors(data_source, save_path=None):
 
     ax_loc.tick_params(axis="y", labelsize=8.5)
     bars = ax_loc.barh(disp_labels, loc_series.values, color=bar_colors, height=0.6, zorder=2)
+    # Prevent matplotlib from clipping long ytick label text at the axes boundary
+    for lbl in ax_loc.get_yticklabels():
+        lbl.set_clip_on(False)
     max_val   = loc_series.max()
     right_pad = 1.30 if max_val > 50 else 1.40
     for bar, val in zip(bars, loc_series.values):
