@@ -262,7 +262,21 @@ def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
     n_zeros = int((data == 0).sum())
 
     ax.set_title(title)
-    ax.set_xlabel(f"{title} Count", fontsize=9, color=TXT_MED, labelpad=4)
+    # Map plural panel titles to their grammatically correct axis label
+    _COUNT_LABELS = {
+        "Retweets":       "Retweet Count",
+        "Likes":          "Like Count",
+        "Views":          "View Count",
+        "Quotes":         "Quote Count",
+        "Replies":        "Reply Count",
+        "Bookmarks":      "Bookmark Count",
+        "Follower Count": "Follower Count",   # already includes "Count"
+        "Following Count":"Following Count",  # already includes "Count"
+    }
+    # Fallback: if title already ends with "Count", don't double-append
+    fallback = title if title.endswith("Count") else f"{title} Count"
+    ax.set_xlabel(_COUNT_LABELS.get(title, fallback),
+                  fontsize=9, color=TXT_MED, labelpad=4)
 
     if N == 0 or len(nonzero) == 0:
         ax.text(0.5, 0.5, "All zeros" if N > 0 else "No data",
@@ -319,7 +333,7 @@ def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
     if use_log:
         log_span  = np.log10(xlim_right_val) - np.log10(xlim_left_val)
         med_frac  = (np.log10(max(med, 1e-9)) - np.log10(xlim_left_val)) / log_span
-        med_visible = med_frac > 0.12   # must occupy at least 12% of log span
+        med_visible = med_frac > 0.20   # must occupy at least 20% of log span
     else:
         lin_span    = xlim_right_val - xlim_left_val
         med_visible = (med - xlim_left_val) / lin_span > 0.05
@@ -630,13 +644,24 @@ def get_temporal_distribution(data_source, save_path=None,
     # still render faint white boundary lines between stacked layers in some
     # matplotlib versions. stackplot() with linewidth=0 never does this.
     total_by_period_pre = pivot.sum(axis=1)
-    ax.stackplot(
-        pivot.index,
-        [pivot[col].values for col in pivot.columns],
-        labels=list(pivot.columns),
-        colors=colors, alpha=0.85,
-        linewidth=0, edgecolor="none",
-    )
+    # Draw each language layer separately. After filling, draw a hairline
+    # along the top boundary of each layer in the SAME color as the fill —
+    # this covers the anti-aliased white seam that appears at polygon edges.
+    x_vals = pivot.index
+    cumulative = np.zeros(len(pivot))
+    handles = []
+    for col, color in zip(pivot.columns, colors):
+        y_vals = pivot[col].values
+        poly = ax.fill_between(
+            x_vals, cumulative, cumulative + y_vals,
+            color=color, alpha=0.88,
+            linewidth=0, label=col,
+        )
+        # Cover seam: draw the upper boundary as a solid line same color as fill
+        ax.plot(x_vals, cumulative + y_vals,
+                color=color, linewidth=0.8, alpha=0.88, zorder=3)
+        handles.append(poly)
+        cumulative = cumulative + y_vals
 
     # D1: no arrowprops — avoids white hairline cutting through area fill
     # D1 fix: ax.scatter() used instead of ax.plot() to avoid the
@@ -675,6 +700,7 @@ def get_temporal_distribution(data_source, save_path=None,
     first_q   = pivot.iloc[:(n_periods // 4)].sum().sum()  if n_periods >= 4 else 0
     leg_loc   = "upper right" if last_q < first_q * 0.5 else "upper left"
     ax.legend(
+        handles=handles,
         title="Language", fontsize=9, title_fontsize=9,
         framealpha=0.92, edgecolor=RULE, loc=leg_loc,
     )
