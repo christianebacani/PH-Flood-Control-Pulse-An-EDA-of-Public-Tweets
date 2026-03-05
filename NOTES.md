@@ -32,3 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
+    - Perform temporal analysis
