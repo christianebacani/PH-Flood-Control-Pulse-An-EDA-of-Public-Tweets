@@ -1,10 +1,32 @@
-# PH Flood Control Pulse: An Exploratory Data Analysis of Public Tweets
+# 🌊 PH Flood Control Pulse
+### An Exploratory Data Analysis of Public Tweets on DPWH Flood Control Projects
 
-When typhoon season hits the Philippines, one of the loudest conversations on social media isn't about the weather — it's about the government. This project explores nearly **200,000 public tweets** from influential Twitter/X accounts discussing the **DPWH (Department of Public Works and Highways)** and its flood control projects.
+> *When typhoon season hits the Philippines, one of the loudest conversations on social media isn't about the weather — it's about the government.*
 
-Before diving into patterns and trends, this EDA answers the most important question first: **can we trust this data?** Every chart, every number, and every conclusion in an analysis is only as reliable as the data behind it — so we start there.
+This project explores nearly **200,000 public tweets** from influential Twitter/X accounts discussing the **DPWH (Department of Public Works and Highways)** and its flood control projects. Before diving into patterns and trends, this EDA answers the most important question first: **can we trust this data?** Every chart, every number, and every conclusion is only as reliable as the data behind it — so we start there.
 
 > 📦 **Data Source:** [DPWH Flood Control Projects 2025 — Kaggle](https://www.kaggle.com/datasets/bwandowando/tweets-on-dpwh-and-flood-control-projects-2025)
+
+---
+
+## 📋 Table of Contents
+
+- [What's in the Data?](#whats-in-the-data)
+- [Dataset 1: Authors](#dataset-1-authors)
+  - [Shape](#shape)
+  - [Schema](#schema)
+  - [Missing Data](#missing-data)
+  - [Data Quality](#data-quality)
+  - [Univariate Analysis](#univariate-analysis--author-profiles)
+- [Dataset 2: Tweets](#dataset-2-tweets)
+  - [Shape](#shape-1)
+  - [Schema](#schema-1)
+  - [Missing Data](#missing-data-1)
+  - [Data Quality](#data-quality-1)
+  - [Engagement Distribution](#univariate-analysis--tweet-engagement)
+  - [Categoricals](#univariate-analysis--tweet-categoricals)
+  - [Volume Over Time](#univariate-analysis--tweet-volume-over-time)
+- [Preprocessing Summary](#preprocessing-summary)
 
 ---
 
@@ -27,23 +49,17 @@ Each dataset goes through four inspection steps before any analysis begins:
 
 ### Shape
 
-![Dataset Shape](output/well_known_authors_dpwh_floodcontrol_dataset_shape.png)
-
 **227 authors generated nearly 200,000 tweets.** This is a small, curated group of influential voices — not a random sample of everyday Twitter users. Think news outlets, government agencies, and public figures, not anonymous accounts.
 
 ---
 
 ### Schema
 
-![Column Names and Data Types](output/well_known_authors_dpwh_floodcontrol_column_names_and_dtypes.png)
-
 The schema is simple: **5 text columns, 2 numeric, 1 boolean** — covering identity, reach, and verification status. Two columns have type issues that need fixing before analysis, addressed in the Data Quality section below.
 
 ---
 
 ### Missing Data
-
-![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
 
 **2 of 8 columns have missing values — and both are missing by choice, not error.** This is an important distinction. A blank field that exists because someone chose not to fill it in is fundamentally different from one that's blank because something went wrong in data collection.
 
@@ -64,8 +80,6 @@ Twitter's location field is optional. These 40 authors simply left it blank.
 ---
 
 ### Data Quality
-
-![Data Quality Report](output/well_known_authors_dpwh_floodcontrol_data_quality.png)
 
 **0 critical issues. 3 warnings** — all minor and straightforward to fix.
 
@@ -93,7 +107,7 @@ These get recoded as `"Unknown"` alongside the genuinely blank entries. After cl
 
 ### Univariate Analysis — Author Profiles
 
-![Author Profiles](output/well_known_authors_dpwh_floodcontrol_author_distribution.png)
+![Univariate Analysis — Author Profiles](output/well_known_authors_dpwh_floodcontrol_author_distribution.png)
 
 Four things stand out from the distributions.
 
@@ -111,15 +125,11 @@ Four things stand out from the distributions.
 
 ### Shape
 
-![Dataset Shape](output/for_export_dpwh_floodcontrol_dataset_shape.png)
-
 **195,744 tweets across 16 columns.** Large enough to surface real patterns in how people engage with flood control topics over time — and rich enough, with 9 numeric engagement columns, to go well beyond just counting tweets.
 
 ---
 
 ### Schema
-
-![Column Names and Data Types](output/for_export_dpwh_floodcontrol_column_names_and_dtypes.png)
 
 **9 of 16 columns are engagement metrics** (retweets, likes, views, quotes, replies, bookmarks, and more) stored as integers — making this a quantitatively dense dataset. Four columns have type issues flagged for fixing in the Data Quality section.
 
@@ -127,7 +137,7 @@ Four things stand out from the distributions.
 
 ### Missing Data
 
-![Missing Data](output/for_export_dpwh_floodcontrol_missing_data.png)
+![Missing Data Analysis](output/for_export_dpwh_floodcontrol_missing_data.png)
 
 **Only 2 of 16 columns have missing values — and both are supposed to be empty for most rows.** Not every blank field is a problem. Sometimes absence is the data.
 
@@ -148,8 +158,6 @@ This field is always blank when `isReply = False` and always filled when `isRepl
 ---
 
 ### Data Quality
-
-![Data Quality Report](output/for_export_dpwh_floodcontrol_data_quality.png)
 
 **1 critical issue. 6 warnings** — none are blockers. All are standard, well-understood fixes.
 
@@ -193,7 +201,7 @@ df["pseudo_inReplyToUsername"] = df["pseudo_inReplyToUsername"].astype("Int64").
 
 ### Univariate Analysis — Tweet Engagement
 
-![Tweet Engagement](output/for_export_dpwh_floodcontrol_engagement_distribution.png)
+![Univariate Analysis — Tweet Engagement](output/for_export_dpwh_floodcontrol_engagement_distribution.png)
 
 The six engagement distributions tell a single, consistent story: **most people read and do nothing.**
 
@@ -207,7 +215,7 @@ This is exactly what you'd expect from institutional accounts covering a governm
 
 ### Univariate Analysis — Tweet Categoricals
 
-![Tweet Categoricals](output/for_export_dpwh_floodcontrol_categorical_distribution.png)
+![Univariate Analysis — Tweet Categoricals](output/for_export_dpwh_floodcontrol_categorical_distribution.png)
 
 **62.9% of tweets are original posts, not replies.** This is a broadcasting dataset — accounts publishing statements, not having conversations. Authors are speaking *about* DPWH flood control, not necessarily speaking *to* each other.
 
@@ -219,7 +227,7 @@ This is exactly what you'd expect from institutional accounts covering a governm
 
 ### Univariate Analysis — Tweet Volume Over Time
 
-![Tweet Volume Over Time](output/for_export_dpwh_floodcontrol_temporal_distribution.png)
+![Univariate Analysis — Tweet Volume Over Time](output/for_export_dpwh_floodcontrol_temporal_distribution.png)
 
 The timeline has one story that drowns out everything else: **September 21 was an event.**
 
