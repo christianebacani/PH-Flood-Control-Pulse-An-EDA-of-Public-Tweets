@@ -277,7 +277,11 @@ def _plot_histogram(ax, data, color, title):
 
     # xlim — explicit both bounds, set AFTER bar()
     if use_log:
-        xlim_left = 10 ** (log_min - 0.3)
+        # Anchor left edge to actual data min — eliminates dead space before first bar.
+        # Floor at tick_safe so the first decade label always stays visible.
+        data_anchored = 10 ** (np.log10(nonzero.min()) - 0.15)
+        tick_safe     = 10 ** (log_min - 0.2)
+        xlim_left     = max(data_anchored, tick_safe)
         ax.set_xlim(xlim_left, 10 ** (log_max + 0.15))
 
     # Scale tick font down for wide log ranges to prevent crowding
