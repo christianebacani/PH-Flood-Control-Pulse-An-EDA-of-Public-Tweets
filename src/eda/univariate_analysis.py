@@ -341,7 +341,7 @@ def _plot_histogram(ax, data, color, title):
                       boxstyle="round,pad=0.4", alpha=0.95))
 
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    ax.set_ylabel("Count", fontsize=8.5, color=TXT_MED)
+    ax.set_ylabel("Number of Tweets", fontsize=8.5, color=TXT_MED)
     _style_ax(ax)
 
 
@@ -372,7 +372,7 @@ def get_univariate_for_authors(data_source, save_path=None):
     # C3: left margin widened so long y-axis labels don't clip
     gs = gridspec.GridSpec(
         2, 3, figure=fig,
-        top=0.90, bottom=0.07, left=0.10, right=0.97,   # left was 0.06
+        top=0.90, bottom=0.07, left=0.17, right=0.97,   # widened for long ytick labels
         hspace=0.38, wspace=0.35,
         height_ratios=[1, 1.1],
     )
@@ -421,6 +421,7 @@ def get_univariate_for_authors(data_source, save_path=None):
         for lbl in raw_labels                       # C2: check raw, not truncated
     ]
 
+    ax_loc.tick_params(axis="y", labelsize=8.5)
     bars = ax_loc.barh(disp_labels, loc_series.values, color=bar_colors, height=0.6, zorder=2)
     max_val   = loc_series.max()
     right_pad = 1.30 if max_val > 50 else 1.40
@@ -465,7 +466,7 @@ def get_univariate_for_tweets(data_source, save_path=None):
     for ax, (col, title) in zip(axes.flat, metrics):
         _plot_histogram(ax, df[col], PALETTE[col], title)
 
-    plt.tight_layout(h_pad=5.0, w_pad=2.5)
+    plt.tight_layout(h_pad=3.5, w_pad=2.5)
     plt.subplots_adjust(top=0.95)
     _safe_show(fig, save_path)
 
@@ -556,7 +557,7 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
             ha="center", va="bottom", fontsize=9, color=TXT_MED,
         )
     ax.set_title("Author Verification")
-    ax.set_ylabel("Number of Authors", fontsize=9, color=TXT_MED)
+    ax.set_ylabel("Number of Tweets", fontsize=9, color=TXT_MED)
     ax.set_ylim(0, vcounts.max() * 1.22)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax)
@@ -609,7 +610,7 @@ def get_temporal_distribution(data_source, save_path=None,
         [pivot[col].values for col in pivot.columns],
         labels=list(pivot.columns),
         colors=colors, alpha=0.85,
-        linewidth=0,
+        linewidth=0, edgecolor="none",
     )
 
     # D1: no arrowprops — avoids white hairline cutting through area fill
@@ -636,6 +637,11 @@ def get_temporal_distribution(data_source, save_path=None,
 
     ax.set_xlabel(f"Date (per {freq_label})", fontsize=10, color=TXT_MED)
     ax.set_ylabel("Number of Tweets",         fontsize=10, color=TXT_MED)
+    # Restore clean date formatting lost when switching from pandas .plot.area()
+    import matplotlib.dates as mdates
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    fig.autofmt_xdate(rotation=0, ha="center")
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
 
     # D2: choose legend position based on data density in last quarter
