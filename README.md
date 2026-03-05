@@ -49,17 +49,23 @@ Each dataset goes through four inspection steps before any analysis begins:
 
 ### Shape
 
+![Dataset Shape](output/well_known_authors_dpwh_floodcontrol_dataset_shape.png)
+
 **227 authors generated nearly 200,000 tweets.** This is a small, curated group of influential voices — not a random sample of everyday Twitter users. Think news outlets, government agencies, and public figures, not anonymous accounts.
 
 ---
 
 ### Schema
 
+![Column Names and Data Types](output/well_known_authors_dpwh_floodcontrol_column_names_and_dtypes.png)
+
 The schema is simple: **5 text columns, 2 numeric, 1 boolean** — covering identity, reach, and verification status. Two columns have type issues that need fixing before analysis, addressed in the Data Quality section below.
 
 ---
 
 ### Missing Data
+
+![Missing Data](output/well_known_authors_dpwh_floodcontrol_missing_data.png)
 
 **2 of 8 columns have missing values — and both are missing by choice, not error.** This is an important distinction. A blank field that exists because someone chose not to fill it in is fundamentally different from one that's blank because something went wrong in data collection.
 
@@ -80,6 +86,8 @@ Twitter's location field is optional. These 40 authors simply left it blank.
 ---
 
 ### Data Quality
+
+![Data Quality Report](output/well_known_authors_dpwh_floodcontrol_data_quality.png)
 
 **0 critical issues. 3 warnings** — all minor and straightforward to fix.
 
@@ -125,11 +133,15 @@ Four things stand out from the distributions.
 
 ### Shape
 
+![Dataset Shape](output/for_export_dpwh_floodcontrol_dataset_shape.png)
+
 **195,744 tweets across 16 columns.** Large enough to surface real patterns in how people engage with flood control topics over time — and rich enough, with 9 numeric engagement columns, to go well beyond just counting tweets.
 
 ---
 
 ### Schema
+
+![Column Names and Data Types](output/for_export_dpwh_floodcontrol_column_names_and_dtypes.png)
 
 **9 of 16 columns are engagement metrics** (retweets, likes, views, quotes, replies, bookmarks, and more) stored as integers — making this a quantitatively dense dataset. Four columns have type issues flagged for fixing in the Data Quality section.
 
@@ -158,6 +170,8 @@ This field is always blank when `isReply = False` and always filled when `isRepl
 ---
 
 ### Data Quality
+
+![Data Quality Report](output/for_export_dpwh_floodcontrol_data_quality.png)
 
 **1 critical issue. 6 warnings** — none are blockers. All are standard, well-understood fixes.
 
