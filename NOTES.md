@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Fix the visual bug at the authors distribution univariate analysis output
+    - Let the Claude check the output and check if it's good now before moving to the next analysis
