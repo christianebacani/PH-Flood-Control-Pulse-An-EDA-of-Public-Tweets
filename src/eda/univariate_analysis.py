@@ -21,8 +21,8 @@ TXT     = "#0F172A"
 TXT_MED = "#475569"
 TXT_LT  = "#94A3B8"
 RULE    = "#E2E8F0"
-GRID    = "#CBD5E1"          # D3: slightly darker grid lines
-MEDIAN_LINE = "#1E293B"      # B1: near-black for median line visibility
+GRID    = "#CBD5E1"
+MEDIAN_LINE = "#1E293B"
 
 PALETTE = {
     "retweetCount":     "#3B82F6",
@@ -42,9 +42,9 @@ LANG_LABELS = {
 }
 
 LANG_COLORS = {
-    "Filipino (tl)": "#60A5FA",   # lighter blue — full opacity
-    "English (en)":  "#34D399",   # lighter teal — full opacity
-    "Other":         "#E2E8F0",   # lightest slate
+    "Filipino (tl)": "#60A5FA",
+    "English (en)":  "#34D399",
+    "Other":         "#E2E8F0",
 }
 
 plt.rcParams.update({
@@ -75,7 +75,6 @@ def _fmt_k(x, _=None):
 
 
 def _fmt_stat(x):
-    """Scale-aware stat formatter (consistent K/M)."""
     if x >= 1_000_000:
         v = x / 1_000_000
         return f"{v:.2f}M" if v < 10 else f"{int(v)}M"
@@ -88,20 +87,15 @@ def _fmt_stat(x):
 
 
 def _fmt_iqr(q1, q3):
-    """
-    FIX C1: q1 shown as plain integer when < 1 000, even if q3 is in K range.
-    Eliminates the confusing '0.2K–1.1K' output for Following Count.
-    """
     if q3 >= 1_000_000:
         return f"{_fmt_stat(q1)}–{_fmt_stat(q3)}"
     elif q3 >= 1_000:
-        # q3 in K range — format q3 as K; q1 as integer if < 1K
-        v3 = q3 / 1_000
+        v3   = q3 / 1_000
         fmt3 = f"{v3:.1f}K" if v3 != int(v3) else f"{int(v3)}K"
         if q1 < 1_000:
             fmt1 = f"{int(q1)}" if q1 == int(q1) else f"{q1:.0f}"
         else:
-            v1 = q1 / 1_000
+            v1   = q1 / 1_000
             fmt1 = f"{v1:.1f}K" if v1 != int(v1) else f"{int(v1)}K"
         return f"{fmt1}–{fmt3}"
     else:
@@ -110,15 +104,15 @@ def _fmt_iqr(q1, q3):
         return f"{fmt1}–{fmt3}"
 
 
-def _truncate_label(label, max_len=28):
+def _truncate_label(label: str, max_len: int = 35) -> str:
     """
-    Truncate at a word boundary so we never cut mid-word.
-    e.g. 'National Capital Region, Republic of the Philippines'
-    → 'National Capital Region, …'  (breaks before 'Republic')
+    Truncate at a word boundary.
+    max_len raised from 28 → 35 so labels like
+    'National Capital Region, Republic of the Philippines' fit without
+    cutting mid-word on most common Philippine location strings.
     """
     if len(label) <= max_len:
         return label
-    # Walk backwards from max_len to find a space or comma
     cut = label[:max_len].rfind(" ")
     if cut <= 0:
         cut = label[:max_len].rfind(",")
@@ -154,7 +148,6 @@ def _style_ax(ax, grid_axis="y", xlabel=""):
     ax.xaxis.set_minor_locator(NullLocator())
     ax.yaxis.set_minor_locator(NullLocator())
     if grid_axis == "y":
-        # D3: darker, slightly thicker grid lines
         ax.yaxis.grid(True, which="major", color=GRID, linewidth=1.0, zorder=0)
         ax.xaxis.grid(False)
     else:
@@ -205,16 +198,12 @@ def _validate_columns(df, required):
 
 
 def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
-    """
-    Fixes B1–B3 applied here.
-    """
     data    = pd.to_numeric(data, errors="coerce").dropna()
     N       = len(data)
     nonzero = data[data > 0]
     n_zeros = int((data == 0).sum())
 
     ax.set_title(title)
-    # Map plural panel titles to their grammatically correct axis label
     _COUNT_LABELS = {
         "Retweets":       "Retweet Count",
         "Likes":          "Like Count",
@@ -222,10 +211,9 @@ def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
         "Quotes":         "Quote Count",
         "Replies":        "Reply Count",
         "Bookmarks":      "Bookmark Count",
-        "Follower Count": "Follower Count",   # already includes "Count"
-        "Following Count":"Following Count",  # already includes "Count"
+        "Follower Count": "Follower Count",
+        "Following Count":"Following Count",
     }
-    # Fallback: if title already ends with "Count", don't double-append
     fallback = title if title.endswith("Count") else f"{title} Count"
     ax.set_xlabel(_COUNT_LABELS.get(title, fallback),
                   fontsize=9, color=TXT_MED, labelpad=4)
@@ -277,26 +265,23 @@ def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
 
     med = float(nonzero.median())
 
-    # B1 + B2: median line — suppress when median ≤ 5 on a log-scale chart.
-    # At that position (x=1–5 out of 1–100K) the line is one pixel from the
-    # y-axis spine and adds visual noise without readable information.
     xlim_left_val  = ax.get_xlim()[0]
     xlim_right_val = ax.get_xlim()[1]
     if use_log:
-        log_span  = np.log10(xlim_right_val) - np.log10(xlim_left_val)
-        med_frac  = (np.log10(max(med, 1e-9)) - np.log10(xlim_left_val)) / log_span
-        med_visible = med_frac > 0.20   # must occupy at least 20% of log span
+        log_span    = np.log10(xlim_right_val) - np.log10(xlim_left_val)
+        med_frac    = (np.log10(max(med, 1e-9)) - np.log10(xlim_left_val)) / log_span
+        med_visible = med_frac > 0.20
     else:
         lin_span    = xlim_right_val - xlim_left_val
         med_visible = (med - xlim_left_val) / lin_span > 0.05
+
     if med_visible:
         ax.axvline(med, color=MEDIAN_LINE, linewidth=1.2, linestyle="--",
                    alpha=0.70, zorder=4)
 
-    # B3: fixed-width stats block using column padding
     q1  = float(nonzero.quantile(0.25))
     q3  = float(nonzero.quantile(0.75))
-    COL = 7   # label column width
+    COL = 7
     rows = []
     if n_zeros > 0:
         rows.append(f"{'Zeros':<{COL}} {n_zeros / N * 100:.1f}%  (n={n_zeros:,})")
@@ -323,10 +308,6 @@ def _plot_histogram(ax, data, color, title, ylabel="Number of Tweets"):
 # ──────────────────────────────────────────────────────────────────
 
 def get_univariate_for_authors(data_source, save_path=None):
-    """
-    Dataset 1 · Authors.
-    New fixes: C1, C2, C3.
-    """
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
          else data_source.copy()
     df = _normalize_dtypes(df)
@@ -342,10 +323,9 @@ def get_univariate_for_authors(data_source, save_path=None):
         fontsize=17, fontweight="bold", color=TXT, y=0.98,
     )
 
-    # C3: left margin widened so long y-axis labels don't clip
     gs = gridspec.GridSpec(
         2, 3, figure=fig,
-        top=0.90, bottom=0.07, left=0.20, right=0.97,   # widened for long ytick labels
+        top=0.90, bottom=0.07, left=0.24, right=0.97,
         hspace=0.38, wspace=0.35,
         height_ratios=[1, 1.1],
     )
@@ -354,17 +334,20 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_ver  = fig.add_subplot(gs[0, 2])
     ax_loc  = fig.add_subplot(gs[1, :])
 
-    _plot_histogram(ax_fol,  df["author_followers"], PALETTE["author_followers"], "Follower Count",  ylabel="Number of Authors")
-    _plot_histogram(ax_fing, df["author_following"], PALETTE["author_following"], "Following Count", ylabel="Number of Authors")
+    _plot_histogram(ax_fol,  df["author_followers"], PALETTE["author_followers"],
+                   "Follower Count",  ylabel="Number of Authors")
+    _plot_histogram(ax_fing, df["author_following"], PALETTE["author_following"],
+                   "Following Count", ylabel="Number of Authors")
 
-    # Verification bar
+    # ── Verification bar ──────────────────────────────────────────────────────
     vcounts = (
         df["author_isBlueVerified"]
         .map({False: "Not Verified", True: "Verified"})
         .value_counts()
         .reindex(["Not Verified", "Verified"])
     )
-    bars = ax_ver.bar(vcounts.index, vcounts.values, color="#3B82F6", width=0.5, zorder=2)
+    bars = ax_ver.bar(vcounts.index, vcounts.values,
+                      color="#3B82F6", width=0.5, zorder=2)
     for bar, val in zip(bars, vcounts.values):
         ax_ver.text(
             bar.get_x() + bar.get_width() / 2,
@@ -379,28 +362,31 @@ def get_univariate_for_authors(data_source, save_path=None):
     ax_ver.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax_ver)
 
-    # Top Author Locations
+    # ── Top Author Locations ───────────────────────────────────────────────────
     loc_raw    = df["author_location"].fillna("Unknown").str.strip().replace({"": "Unknown"})
     loc_counts = loc_raw.value_counts()
-    top_n      = 15
-    top        = loc_counts.head(top_n)
-    others     = loc_counts.iloc[top_n:].sum()
 
-    # Build series with raw labels first, then truncate
-    loc_series = pd.concat([top, pd.Series({"Others": others})]).sort_values()
-    raw_labels  = list(loc_series.index)           # keep "Others" detectable — C2
+    # FIX: only keep locations appearing more than once to avoid inflating "Others"
+    meaningful  = loc_counts[loc_counts > 1]
+    top_n       = min(len(meaningful), 20)
+    top         = meaningful.head(top_n)
+    others      = loc_counts.iloc[top_n:].sum()
+
+    loc_series  = pd.concat([top, pd.Series({"Others": others})]).sort_values()
+    raw_labels  = list(loc_series.index)
     disp_labels = [_truncate_label(str(lbl)) for lbl in raw_labels]
 
-    bar_colors = [
+    bar_colors  = [
         "#CBD5E1" if lbl == "Others" else "#3B82F6"
-        for lbl in raw_labels                       # C2: check raw, not truncated
+        for lbl in raw_labels
     ]
 
     ax_loc.tick_params(axis="y", labelsize=8.5)
-    bars = ax_loc.barh(disp_labels, loc_series.values, color=bar_colors, height=0.6, zorder=2)
-    # Prevent matplotlib from clipping long ytick label text at the axes boundary
+    bars = ax_loc.barh(disp_labels, loc_series.values,
+                       color=bar_colors, height=0.6, zorder=2)
     for lbl in ax_loc.get_yticklabels():
         lbl.set_clip_on(False)
+
     max_val   = loc_series.max()
     right_pad = 1.30 if max_val > 50 else 1.40
     for bar, val in zip(bars, loc_series.values):
@@ -410,19 +396,18 @@ def get_univariate_for_authors(data_source, save_path=None):
             f"{val:,} ({val/N*100:.1f}%)",
             va="center", fontsize=9, color=TXT_MED,
         )
+
     ax_loc.set_title("Top Author Locations", pad=10)
     ax_loc.set_xlabel("Number of Authors", fontsize=9, color=TXT_MED)
     ax_loc.set_xlim(0, max_val * right_pad)
     ax_loc.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
     _style_ax(ax_loc, grid_axis="x")
 
-    # Protect the widened left margin from tight_layout shrinking it back
-    plt.subplots_adjust(left=0.20)
+    plt.subplots_adjust(left=0.24)
     _safe_show(fig, save_path)
 
 
 def get_univariate_for_tweets(data_source, save_path=None):
-    """Dataset 2 · Tweets — engagement histograms."""
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
          else data_source.copy()
     df = _normalize_tweet_columns(df)
@@ -452,10 +437,6 @@ def get_univariate_for_tweets(data_source, save_path=None):
 
 
 def get_univariate_for_tweet_categoricals(data_source, save_path=None):
-    """
-    Dataset 2 · Tweets — categorical columns.
-    New fixes: A1, A2, A3.
-    """
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
          else data_source.copy()
     df = _normalize_dtypes(df)
@@ -463,10 +444,9 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
 
     N = len(df)
 
-    # Distinct palette per panel — each chart measures a different concept
-    C_REPLY  = "#3B82F6"   # blue   — Reply Status
-    C_LANG   = "#14B8A6"   # teal   — Languages
-    C_VERIFY = "#8B5CF6"   # violet — Verification
+    C_REPLY  = "#3B82F6"
+    C_LANG   = "#14B8A6"
+    C_VERIFY = "#8B5CF6"
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 6.5))
     fig.suptitle(
@@ -507,14 +487,10 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
         lang_counts.index[::-1], lang_counts.values[::-1],
         color=C_LANG, height=0.55, zorder=2,
     )
-    label_offset  = lang_counts.max() * 0.01
-    # Threshold: bars < 1% of the max are visually near-invisible on this scale.
-    # For those, enforce a minimum display width so the bar is at least 3px wide,
-    # and shift the label to start from a small fixed offset instead.
-    min_visible   = lang_counts.max() * 0.005   # 0.5% of max → minimum bar stub
+    label_offset = lang_counts.max() * 0.01
+    min_visible  = lang_counts.max() * 0.005
     for bar, val in zip(bars, lang_counts.values[::-1]):
         display_x = max(val, min_visible)
-        # If bar was too small, redraw it at min_visible width in a muted colour
         if val < min_visible:
             ax.barh(
                 bar.get_y() + bar.get_height() / 2,
@@ -563,10 +539,6 @@ def get_univariate_for_tweet_categoricals(data_source, save_path=None):
 
 def get_temporal_distribution(data_source, save_path=None,
                                freq="D", top_n_lang=2):
-    """
-    Dataset 2 · Tweets — volume over time.
-    New fixes: D1, D2, D3.
-    """
     df = pd.read_csv(data_source) if isinstance(data_source, str) \
          else data_source.copy()
     df = _normalize_dtypes(df)
@@ -595,33 +567,22 @@ def get_temporal_distribution(data_source, save_path=None,
         fontsize=17, fontweight="bold", color=TXT, y=1.02,
     )
 
-    # Use ax.stackplot() directly — pivot.plot.area() with linewidth=0 can
-    # still render faint white boundary lines between stacked layers in some
-    # matplotlib versions. stackplot() with linewidth=0 never does this.
     total_by_period_pre = pivot.sum(axis=1)
-    # Draw each language layer separately. After filling, draw a hairline
-    # along the top boundary of each layer in the SAME color as the fill —
-    # this covers the anti-aliased white seam that appears at polygon edges.
-    x_vals = pivot.index
-    cumulative = np.zeros(len(pivot))
-    handles = []
+    x_vals      = pivot.index
+    cumulative  = np.zeros(len(pivot))
+    handles     = []
     for col, color in zip(pivot.columns, colors):
         y_vals = pivot[col].values
-        poly = ax.fill_between(
+        poly   = ax.fill_between(
             x_vals, cumulative, cumulative + y_vals,
             color=color, alpha=0.88,
             linewidth=0, label=col,
         )
-        # Cover seam: draw the upper boundary as a solid line same color as fill
         ax.plot(x_vals, cumulative + y_vals,
                 color=color, linewidth=0.8, alpha=0.88, zorder=3)
         handles.append(poly)
         cumulative = cumulative + y_vals
 
-    # D1: no arrowprops — avoids white hairline cutting through area fill
-    # D1 fix: ax.scatter() used instead of ax.plot() to avoid the
-    # "axis already has a converter set" UserWarning that ax.plot() triggers
-    # after pivot.plot.area() has registered pandas' datetime converter.
     total_by_period = total_by_period_pre.sort_values(ascending=False)
     top3 = total_by_period.head(3)
     for date, val in top3.items():
@@ -634,7 +595,6 @@ def get_temporal_distribution(data_source, save_path=None,
             color=TXT_MED, fontweight="bold",
             arrowprops=None,
         )
-    # Batch all dots in a single scatter call — no converter conflict
     ax.scatter(
         top3.index, top3.values,
         color=TXT_MED, s=18, zorder=5,
@@ -642,14 +602,13 @@ def get_temporal_distribution(data_source, save_path=None,
 
     ax.set_xlabel(f"Date (per {freq_label})", fontsize=10, color=TXT_MED)
     ax.set_ylabel("Number of Tweets",         fontsize=10, color=TXT_MED)
-    # Restore clean date formatting lost when switching from pandas .plot.area()
+
     import matplotlib.dates as mdates
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     fig.autofmt_xdate(rotation=0, ha="center")
     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
 
-    # D2: choose legend position based on data density in last quarter
     n_periods = len(pivot)
     last_q    = pivot.iloc[-(n_periods // 4):].sum().sum() if n_periods >= 4 else 1
     first_q   = pivot.iloc[:(n_periods // 4)].sum().sum()  if n_periods >= 4 else 0
