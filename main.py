@@ -8,6 +8,7 @@ from src.eda.univariate_analysis import get_univariate_for_authors
 from src.eda.univariate_analysis import get_univariate_for_tweets
 from src.eda.univariate_analysis import get_univariate_for_tweet_categoricals
 from src.eda.univariate_analysis import get_temporal_distribution
+from src.eda.text_analysis import get_text_analysis
 
 extract_files_from_zipfile("data/archive.zip")
 
@@ -61,4 +62,10 @@ get_univariate_for_tweet_categoricals(
 get_temporal_distribution(
     "data/for_export_dpwh_floodcontrol.csv",
     save_path="output/for_export_dpwh_floodcontrol_temporal_distribution.png"
+)
+
+# ── Text Analysis  — Dataset: Tweets ───────────────────────────────
+get_text_analysis(
+    "data/for_export_dpwh_floodcontrol.csv",
+    save_path="output/for_export_dpwh_floodcontrol_text_analysis.png"
 )
