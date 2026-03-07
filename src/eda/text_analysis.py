@@ -21,10 +21,9 @@ TXT_LT  = "#94A3B8"
 RULE    = "#E2E8F0"
 GRID    = "#CBD5E1"
 
-C_KEYWORD  = "#3B82F6"   # blue
-C_HASHTAG  = "#8B5CF6"   # violet
-C_MENTION  = "#14B8A6"   # teal
-C_OTHER    = "#CBD5E1"   # grey (obfuscated / numeric mentions)
+C_KEYWORD = "#3B82F6"   # blue
+C_HASHTAG = "#8B5CF6"   # violet
+C_BIGRAM  = "#F59E0B"   # amber — distinct from keywords and hashtags
 
 plt.rcParams.update({
     "figure.facecolor":  BG,
@@ -59,97 +58,123 @@ ENGLISH_STOPWORDS = {
     "back", "only", "here", "there", "while", "because", "since", "until",
     "although", "though", "however", "therefore", "thus", "hence", "well",
     "re", "s", "t", "don", "doesn", "didn", "won", "hasn", "hadn",
-    "isn", "aren", "wasn", "weren", "ain", "via", "amp",
+    "isn", "aren", "wasn", "weren", "ain", "via", "amp", "get", "got",
+    "let", "say", "said", "like", "know", "make", "made", "go", "going",
+    "one", "two", "three", "four", "five", "use", "used", "need", "want",
 }
 
 FILIPINO_STOPWORDS = {
-    # pronouns
-    "ako", "ikaw", "ka", "siya", "kami", "kami", "tayo", "kayo", "sila",
+    "ako", "ikaw", "ka", "siya", "kami", "tayo", "kayo", "sila",
     "ko", "mo", "niya", "namin", "natin", "ninyo", "nila",
     "akin", "iyo", "kanya", "atin", "inyo", "kanila",
-    # markers / linkers
     "ang", "ng", "na", "sa", "ni", "kay", "nang", "kung", "dahil",
     "para", "pero", "at", "o", "kasi", "kaya", "din", "rin", "pa",
     "po", "nga", "naman", "lang", "lamang", "man", "raw", "daw",
     "ba", "yata", "pala", "talaga", "halos", "mula", "hanggang",
     "dito", "doon", "diyan", "ito", "iyon", "iyan", "yon", "yun",
     "saan", "kailan", "sino", "ano", "paano", "bakit",
-    "may", "mayroon", "wala", "walang", "may", "hindi", "huwag",
-    "oo", "opo", "opo", "ayaw", "gusto", "ibig",
+    "may", "mayroon", "wala", "walang", "hindi", "huwag",
+    "oo", "opo", "ayaw", "gusto", "ibig",
     "yan", "yung", "yong", "nung", "noong", "noon",
     "lahat", "bawat", "ilang", "ibang", "iba",
-    "kanyang", "nito", "nito", "niyon", "dito", "doon",
+    "kanyang", "nito", "niyon",
     "mga", "eh", "ah", "oh", "ha", "ay", "si", "ni",
-    # common short words that add no signal
-    "na", "pa", "ba", "po", "ho", "nga", "rin", "din",
-    "yan", "yun", "ito", "iyon", "sya",
+    "sya", "niya", "nito", "diba", "talaga", "dapat",
+    "kung", "kapag", "habang", "gayun", "ganon", "ganyan",
+    "mismo", "sana", "siguro", "pwede", "puwede",
 }
 
 STOPWORDS = ENGLISH_STOPWORDS | FILIPINO_STOPWORDS
 
-# Domain-specific noise words (very high freq but no analytical value here)
+# Domain noise: ultra-high frequency words with no analytical signal.
+# Also includes fragments of "Dept of Public Works and Highways Blue Ribbon
+# Committee" which produce garbage bigrams like "public works", "works highways",
+# "department public", "blue ribbon" after stopword removal.
 DOMAIN_NOISE = {
+    # Core dataset terms (appear in nearly every tweet)
     "flood", "control", "dpwh", "flooding", "project", "projects",
-    "rt", "http", "https", "t", "co", "1", "2", "3",
+    "rt", "http", "https", "co", "t",
+    # DPWH full-name fragments → suppress garbage bigrams
+    "department", "public", "works", "highways", "blue", "ribbon",
+    # Generic gov/political words with no specificity in this corpus
+    "senate", "committee", "budget", "president", "official",
+    "office", "congress", "house", "government", "administration",
+    # Vague high-frequency words
+    "people", "time", "year", "years", "money",
+    "new", "big", "good", "bad", "great", "many", "much",
+    # Abbreviations / fragments that slipped keyword filter
+    "sen", "his", "pnp", "gov",
+    # Filipino function words not caught by stopword list
+    "kaban", "lng", "tlga", "naman", "kasi", "kahit",
 }
+
+# ──────────────────────────────────────────────────────────────────
+# 🔧  Regex patterns
+# ──────────────────────────────────────────────────────────────────
+
+_URL_RE     = re.compile(r"https?://\S+")
+_MENTION_RE = re.compile(r"@(\w+)")
+_HASHTAG_RE = re.compile(r"#(\w+)")
+_CLEAN_RE   = re.compile(r"[^a-zA-Z0-9\s]")
+_NUMERIC_RE = re.compile(r"^\d+$")
+
 
 # ──────────────────────────────────────────────────────────────────
 # 🔧  Extraction helpers
 # ──────────────────────────────────────────────────────────────────
 
-_URL_RE      = re.compile(r"https?://\S+")
-_MENTION_RE  = re.compile(r"@(\w+)")
-_HASHTAG_RE  = re.compile(r"#(\w+)")
-_CLEAN_RE    = re.compile(r"[^a-zA-Z0-9\s]")
-_NUMERIC_RE  = re.compile(r"^\d+$")
+def _clean_tokens(text: str) -> list:
+    """Shared cleaning pipeline for keywords and bigrams."""
+    t = _URL_RE.sub(" ", str(text))
+    t = _MENTION_RE.sub(" ", t)
+    t = _HASHTAG_RE.sub(" ", t)
+    t = _CLEAN_RE.sub(" ", t).lower()
+    return [
+        tok for tok in t.split()
+        if tok not in STOPWORDS
+        and tok not in DOMAIN_NOISE
+        and len(tok) > 2
+        and not _NUMERIC_RE.match(tok)
+    ]
+
+
+def _extract_keywords(texts: pd.Series) -> Counter:
+    counter = Counter()
+    for text in texts.dropna():
+        counter.update(_clean_tokens(text))
+    return counter
 
 
 def _extract_hashtags(texts: pd.Series) -> Counter:
     counter = Counter()
     for text in texts.dropna():
         tags = _HASHTAG_RE.findall(str(text))
-        # normalise to lowercase for deduplication, display as lowercase
         counter.update(t.lower() for t in tags if len(t) > 1)
     return counter
 
 
-def _extract_mentions(texts: pd.Series) -> Counter:
+def _extract_bigrams(texts: pd.Series) -> Counter:
     """
-    Extract @mentions, split into two buckets:
-      - real:      alphabetic usernames  (e.g. @ABSCBNNews)
-      - obfuscated: purely numeric IDs   (e.g. @82000787115977)
-    Returns only real mentions for the chart; obfuscated count is annotated.
+    Two-word phrases after the same cleaning pipeline as keywords.
+    Bigrams surface concepts that single tokens miss —
+    e.g. 'senate investigation', 'ghost project', 'billion pesos'.
     """
-    real      = Counter()
-    obfuscated = Counter()
-    for text in texts.dropna():
-        for m in _MENTION_RE.findall(str(text)):
-            if _NUMERIC_RE.match(m):
-                obfuscated[m] += 1
-            else:
-                real[m.lower()] += 1
-    return real, obfuscated
-
-
-def _extract_keywords(texts: pd.Series) -> Counter:
     counter = Counter()
     for text in texts.dropna():
-        # remove URLs, mentions, hashtags first
-        t = _URL_RE.sub(" ", str(text))
-        t = _MENTION_RE.sub(" ", t)
-        t = _HASHTAG_RE.sub(" ", t)
-        # remove punctuation, lowercase
-        t = _CLEAN_RE.sub(" ", t).lower()
-        tokens = t.split()
-        tokens = [
-            tok for tok in tokens
-            if tok not in STOPWORDS
-            and tok not in DOMAIN_NOISE
-            and len(tok) > 2
-            and not _NUMERIC_RE.match(tok)
-        ]
-        counter.update(tokens)
+        tokens = _clean_tokens(text)
+        for w1, w2 in zip(tokens, tokens[1:]):
+            counter[(w1, w2)] += 1
     return counter
+
+
+def _count_obfuscated_mentions(texts: pd.Series) -> int:
+    total = 0
+    for text in texts.dropna():
+        total += sum(
+            1 for m in _MENTION_RE.findall(str(text))
+            if _NUMERIC_RE.match(m)
+        )
+    return total
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -194,21 +219,16 @@ def _safe_show(fig, save_path=None):
 # 📊  Single horizontal bar panel
 # ──────────────────────────────────────────────────────────────────
 
-def _bar_panel(ax, counter: Counter, top_n: int, color: str,
-               title: str, xlabel: str, prefix: str = ""):
-    top    = counter.most_common(top_n)
-    if not top:
+def _bar_panel(ax, items: list, color: str, title: str, xlabel: str):
+    """items: list of (label_str, count) in descending order."""
+    if not items:
         ax.text(0.5, 0.5, "No data", ha="center", va="center",
                 transform=ax.transAxes, color=TXT_MED)
         ax.set_title(title)
         return
 
-    labels = [f"{prefix}{item}" for item, _ in top]
-    values = [count for _, count in top]
-
-    # Reverse so highest is at top
-    labels = labels[::-1]
-    values = values[::-1]
+    labels = [label for label, _ in items][::-1]
+    values = [count for _, count in items][::-1]
 
     bars = ax.barh(labels, values, color=color, height=0.62,
                    alpha=0.85, zorder=2)
@@ -238,7 +258,11 @@ def _bar_panel(ax, counter: Counter, top_n: int, color: str,
 
 def get_text_analysis(data_source, save_path=None, top_n: int = 20):
     """
-    Text Analysis — top keywords, hashtags, and mentions from the `text` column.
+    Text Analysis — top keywords, hashtags, and bigrams from the `text` column.
+
+    Note: all @mentions in this dataset are obfuscated numeric IDs (anonymised).
+    The third panel therefore shows top bigrams (two-word phrases) instead,
+    which provide richer analytical signal about the topics being discussed.
 
     Parameters
     ----------
@@ -252,61 +276,60 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 20):
     if "text" not in df.columns:
         raise ValueError("DataFrame must contain a 'text' column.")
 
-    N    = len(df)
+    N     = len(df)
     texts = df["text"]
 
     # ── Extract ───────────────────────────────────────────────────────────────
-    keyword_counts          = _extract_keywords(texts)
-    hashtag_counts          = _extract_hashtags(texts)
-    mention_counts, obf_counts = _extract_mentions(texts)
+    keyword_counts = _extract_keywords(texts)
+    hashtag_counts = _extract_hashtags(texts)
+    bigram_counts  = _extract_bigrams(texts)
+    n_obfuscated   = _count_obfuscated_mentions(texts)
 
-    n_hashtags   = sum(hashtag_counts.values())
-    n_mentions   = sum(mention_counts.values())
-    n_obfuscated = sum(obf_counts.values())
-    unique_tags  = len(hashtag_counts)
-    unique_ment  = len(mention_counts)
+    n_hashtags  = sum(hashtag_counts.values())
+    unique_tags = len(hashtag_counts)
+    unique_bi   = len(bigram_counts)
+
+    kw_items = keyword_counts.most_common(top_n)
+    ht_items = [(f"#{tag}", cnt) for tag, cnt in hashtag_counts.most_common(top_n)]
+    bi_items = [(f"{w1} {w2}", cnt) for (w1, w2), cnt in bigram_counts.most_common(top_n)]
 
     # ── Layout ────────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(20, 14))
+    fig = plt.figure(figsize=(22, 14))
     fig.suptitle(
-        "Text Analysis \u2014 Keywords, Hashtags & Mentions",
+        "Text Analysis \u2014 Keywords, Hashtags & Top Phrases",
         fontsize=17, fontweight="bold", color=TXT, y=0.99,
     )
 
-    # Subtitle / summary line
     fig.text(
         0.5, 0.965,
         f"{N:,} tweets  ·  {n_hashtags:,} hashtag uses ({unique_tags:,} unique)  "
-        f"·  {n_mentions:,} real mentions ({unique_ment:,} unique)  "
-        f"·  {n_obfuscated:,} obfuscated @IDs excluded",
+        f"·  {unique_bi:,} unique bigrams  "
+        f"·  {n_obfuscated:,} obfuscated @IDs excluded from mentions",
         ha="center", fontsize=9, color=TXT_MED,
     )
 
     gs = gridspec.GridSpec(
         1, 3, figure=fig,
-        left=0.10, right=0.97,
+        left=0.09, right=0.97,
         top=0.92, bottom=0.06,
-        wspace=0.52,
+        wspace=0.55,
     )
 
-    ax_kw   = fig.add_subplot(gs[0, 0])
-    ax_ht   = fig.add_subplot(gs[0, 1])
-    ax_ment = fig.add_subplot(gs[0, 2])
+    ax_kw = fig.add_subplot(gs[0, 0])
+    ax_ht = fig.add_subplot(gs[0, 1])
+    ax_bi = fig.add_subplot(gs[0, 2])
 
-    _bar_panel(ax_kw,   keyword_counts,  top_n, C_KEYWORD,
-               f"Top {top_n} Keywords",  "Occurrences")
+    _bar_panel(ax_kw, kw_items, C_KEYWORD,
+               f"Top {top_n} Keywords",            "Occurrences")
+    _bar_panel(ax_ht, ht_items, C_HASHTAG,
+               f"Top {top_n} Hashtags",             "Uses")
+    _bar_panel(ax_bi, bi_items, C_BIGRAM,
+               f"Top {top_n} Phrases (Bigrams)",    "Co-occurrences")
 
-    _bar_panel(ax_ht,   hashtag_counts,  top_n, C_HASHTAG,
-               f"Top {top_n} Hashtags",  "Uses", prefix="#")
-
-    _bar_panel(ax_ment, mention_counts,  top_n, C_MENTION,
-               f"Top {top_n} Mentions",  "Times Mentioned", prefix="@")
-
-    # Footnote about obfuscated mentions
     fig.text(
         0.5, 0.01,
-        f"* Mentions panel shows real @usernames only. "
-        f"{n_obfuscated:,} numeric @IDs (obfuscated accounts) were excluded.",
+        "* Phrases panel shows the most frequent two-word combinations after removing stopwords and domain noise.  "
+        f"{n_obfuscated:,} numeric @IDs (anonymised accounts) were excluded from mention analysis.",
         ha="center", fontsize=8, color=TXT_LT, style="italic",
     )
 
