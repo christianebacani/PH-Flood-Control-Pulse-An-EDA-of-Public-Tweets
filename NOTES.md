@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Perform temporal analysis
+    - Check the output for the module "text_analysis" by letting the claude model do it "https://claude.ai/chat/dab83a41-8d5c-4e12-ae89-e04c4df6f002"
