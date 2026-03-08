@@ -32,4 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Perform bivariate analysis now using Claude AI of my personal account and validate it using the model also.
+    - Perform bivariate analysis now using Claude AI from my personal account and validate it using the LLM also.
