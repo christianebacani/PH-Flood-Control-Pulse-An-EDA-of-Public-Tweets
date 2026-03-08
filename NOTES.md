@@ -32,6 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Check the existing output of "src/eda/text_analysis.py" module by verifying it by Claude AI
-    from the existing chat name "Verifying output accuracy" from my personal account.
-    - Ask the variables inside the text analysis so that I can understand all the "why" of the output
+    - Perform bivariate analysis now using Claude AI of my personal account and validate it using the model also.
