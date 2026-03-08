@@ -27,6 +27,7 @@ This project explores nearly **200,000 public tweets** from influential Twitter/
   - [Categoricals](#univariate-analysis--tweet-categoricals)
   - [Volume Over Time](#univariate-analysis--tweet-volume-over-time)
 - [Preprocessing Summary](#preprocessing-summary)
+- [Text Analysis](#text-analysis--keywords-hashtags--top-phrases)
 
 ---
 
@@ -316,3 +317,78 @@ df["lang"] = df["lang"].replace("und", "other")
 ---
 
 *Analysis conducted using Python · pandas · matplotlib. All visualisations generated programmatically for full reproducibility.*
+
+---
+
+## Text Analysis — Keywords, Hashtags & Top Phrases
+
+> *Numbers tell you how much people engaged. Text tells you what they were actually saying.*
+
+With engagement distributions and temporal patterns established, the next question is: **what language did people use?** This section extracts the most frequent single words, organised hashtag campaigns, and two-word phrases from all 195,744 tweets — revealing the key actors, themes, and narratives driving the conversation.
+
+> ⚙️ **Method note:** Before counting, all tweets were stripped of URLs, @mentions, stopwords (English and Filipino), and domain-specific noise words (`flood`, `control`, `dpwh`, `project`, etc.) that appear in nearly every tweet and carry no analytical signal. Pseudonymised numeric @mentions (e.g. `@972890161400492`) were excluded entirely — 117,737 of them — since they represent anonymised account IDs with no linguistic meaning. Two-word phrases (bigrams) are the most frequent word pairs after the same cleaning pipeline.
+
+---
+
+### Text Analysis Overview
+
+![Text Analysis — Keywords, Hashtags & Top Phrases](output/for_export_dpwh_floodcontrol_text_analysis.png)
+
+---
+
+### Keywords
+
+**Two names dominate the discourse above all else: Discaya (36,225) and Marcoleta (26,471).**
+
+These are not institutions — they are individuals. The fact that two personal surnames sit so far above everything else, including the word "corruption" in third place (19,088), tells us this conversation is not abstract. It is directed. People are talking *about specific people*, not just about systemic problems.
+
+The top 15 keywords cluster into three clear groups:
+
+**Named individuals** — Discaya, Marcoleta, Zaldy, Marcos, Duterte, Romualdez, Lacson, Sotto, Ferdinand. These are the people the public is holding accountable, debating, or defending in connection with the flood control controversy.
+
+**The core accusation** — "corruption" (#3, 19,088) and "ghost" (#10, 8,468) together form the central narrative: that flood control funds were stolen through ghost projects — infrastructure spending that existed only on paper.
+
+**Organisational reference** — "pbbm" (#6, 12,284) and "contractors" (#13, 7,109) place the conversation in its institutional context — the current administration and the private firms implicated in the contracts.
+
+The sharp drop-off after the top three is telling. Discaya alone appears nearly **twice as often** as the fourth-ranked term (Zaldy, 13,664) — suggesting one figure attracted a disproportionate share of public attention, likely as the central name surfaced in Senate investigations.
+
+---
+
+### Hashtags
+
+**`#trillionpesomarch` (19,994) and `#bahasaluneta` (17,932) are not just hashtags — they are mobilisation calls.**
+
+Together they account for nearly 38,000 hashtag uses and represent organised citizen action: a call to march and a reference to a specific protest gathering point (Luneta Park). The fact that these two campaign hashtags outpace even `#dpwh` (2,640) by a factor of 7 indicates this dataset captures not just commentary but active civic organising.
+
+`#kurakotmanagot` (#3, 8,547) — roughly translating to "corrupt people must be held accountable" — reinforces the accountability framing. The three dominant hashtags together paint a picture of a public that moved from outrage to organised demand.
+
+**8,655 unique hashtags** across 113,929 total uses means the conversation, while concentrated at the top, was also fragmented — thousands of people bringing their own framing to the same event.
+
+---
+
+### Phrases (Bigrams)
+
+**The bigrams resolve individual keywords into identities.** Where "ferdinand" and "marcos" appear separately in the keywords list, "ferdinand marcos" (4,226) as a bigram confirms they are almost always used together — referring to the president by full name.
+
+The top 10 bigrams are almost exclusively proper names:
+
+| Rank | Bigram | Co-occurrences |
+|---|---|---|
+| #1 | ferdinand marcos | 4,226 |
+| #2 | curlee discaya | 3,535 |
+| #3 | chiz escudero | 2,855 |
+| #4 | brice hernandez | 2,678 |
+| #5 | jinggoy estrada | 2,647 |
+| #6 | henry alcantara | 2,395 |
+| #7 | rodante marcoleta | 2,283 |
+| #8 | joel villanueva | 2,011 |
+| #9 | tito sotto | 1,560 |
+| #10 | mark villar | 1,526 |
+
+This is a named-actor conversation. The public discourse around DPWH flood control is almost entirely organised around specific political figures — senators, former officials, and contractors — rather than around policy abstractions or systemic reform language. Every name in the top 10 bigrams is a person, not a concept.
+
+The presence of Senate figures (Escudero, Estrada, Villanueva, Sotto) alongside the primary accused (Discaya, Marcoleta) suggests the conversation was tracking the Senate investigation closely — people were naming both the subjects of scrutiny and the officials conducting it.
+
+---
+
+> 💡 **Takeaway:** The text analysis tells a story the engagement metrics could not: this dataset is not about flood control infrastructure — it is about **accountability**. The language is personal, named, and politically charged. Citizens were not discussing drainage systems; they were naming the people they believed responsible for the failures.
