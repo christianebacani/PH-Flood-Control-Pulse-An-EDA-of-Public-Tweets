@@ -10,7 +10,7 @@ from pathlib import Path
 from matplotlib.ticker import FuncFormatter
 
 # ──────────────────────────────────────────────────────────────────
-# 🎨  Design tokens  (matches the rest of the EDA suite)
+# 🎨  Design tokens
 # ──────────────────────────────────────────────────────────────────
 
 BG      = "#F8FAFC"
@@ -21,9 +21,9 @@ TXT_LT  = "#94A3B8"
 RULE    = "#E2E8F0"
 GRID    = "#CBD5E1"
 
-C_KEYWORD = "#3B82F6"   # blue
-C_HASHTAG = "#8B5CF6"   # violet
-C_BIGRAM  = "#F59E0B"   # amber — distinct from keywords and hashtags
+C_KEYWORD = "#3B82F6"
+C_HASHTAG = "#8B5CF6"
+C_BIGRAM  = "#F59E0B"
 
 plt.rcParams.update({
     "figure.facecolor":  BG,
@@ -40,7 +40,7 @@ plt.rcParams.update({
 })
 
 # ──────────────────────────────────────────────────────────────────
-# 🔤  Stopwords  (English + Filipino)
+# 🔤  Stopwords
 # ──────────────────────────────────────────────────────────────────
 
 ENGLISH_STOPWORDS = {
@@ -86,48 +86,31 @@ FILIPINO_STOPWORDS = {
 
 STOPWORDS = ENGLISH_STOPWORDS | FILIPINO_STOPWORDS
 
-# Domain noise: ultra-high frequency words with no analytical signal.
-# Includes DPWH full-name fragments, generic political words, and
-# Filipino function words that slipped through the stopword filter.
 DOMAIN_NOISE = {
-    # Core dataset terms (appear in nearly every tweet)
     "flood", "control", "dpwh", "flooding", "project", "projects",
     "rt", "http", "https", "co", "t",
-    # DPWH full-name fragments → suppress garbage bigrams
     "department", "public", "works", "highways", "blue", "ribbon",
-    # Generic gov/political words with no specificity in this corpus
     "senate", "committee", "budget", "president", "official",
     "office", "congress", "house", "government", "administration",
-    # Vague/generic high-frequency words
     "people", "time", "year", "years", "money",
     "new", "big", "good", "bad", "great", "many", "much",
     "city", "district", "secretary", "commission", "independent",
-    # Short abbreviations and fragments
     "sen", "his", "rep", "gov", "pnp", "nyo", "mag",
-    # Stems/variants already represented by cleaner forms
-    "corrupt",   # redundant — "corruption" already in keywords
-    # Filipino function/filler words not caught by stopword list
+    "corrupt",
     "kaban", "bayan", "ibalik", "lng", "tlga", "naman", "kasi", "kahit",
     "asawang", "1st", "mayor", "vico",
-    # More Filipino verb prefixes / infixes with no standalone meaning
     "nya", "nag", "pag", "mga", "sec", "pangulong", "nepo",
-    # Duplicate stems (cleaner form already present)
-    "contractor",   # "contractors" is the cleaner plural form
-    # Single-name fragments already captured in bigrams
+    "contractor",
     "martin", "dizon", "hearing",
-    # Remaining noise from latest output
     "dating", "read", "ngayon", "umano", "edsa", "infrastructure",
     "senator", "witness", "state",
     "ping", "officials", "official", "speaker",
     "former", "against", "panfilo", "bongbong",
     "ici", "sarah", "pro", "tempore",
     "isang", "luneta", "party", "list", "bong", "revilla",
-    "nasa", "engineer",
+    "nasa", "engineer", "vince", "philippines",
+    "alam", "senador", "dds", "mas",
 }
-
-# ──────────────────────────────────────────────────────────────────
-# 🔧  Regex patterns
-# ──────────────────────────────────────────────────────────────────
 
 _URL_RE     = re.compile(r"https?://\S+")
 _MENTION_RE = re.compile(r"@(\w+)")
@@ -136,12 +119,7 @@ _CLEAN_RE   = re.compile(r"[^a-zA-Z0-9\s]")
 _NUMERIC_RE = re.compile(r"^\d+$")
 
 
-# ──────────────────────────────────────────────────────────────────
-# 🔧  Extraction helpers
-# ──────────────────────────────────────────────────────────────────
-
 def _clean_tokens(text: str) -> list:
-    """Shared cleaning pipeline for keywords and bigrams."""
     t = _URL_RE.sub(" ", str(text))
     t = _MENTION_RE.sub(" ", t)
     t = _HASHTAG_RE.sub(" ", t)
@@ -171,11 +149,6 @@ def _extract_hashtags(texts: pd.Series) -> Counter:
 
 
 def _extract_bigrams(texts: pd.Series) -> Counter:
-    """
-    Two-word phrases after the same cleaning pipeline as keywords.
-    Bigrams surface concepts that single tokens miss —
-    e.g. 'senate investigation', 'ghost project', 'billion pesos'.
-    """
     counter = Counter()
     for text in texts.dropna():
         tokens = _clean_tokens(text)
@@ -192,26 +165,6 @@ def _count_obfuscated_mentions(texts: pd.Series) -> int:
             if _NUMERIC_RE.match(m)
         )
     return total
-
-
-# ──────────────────────────────────────────────────────────────────
-# 🔧  Shared axis styler
-# ──────────────────────────────────────────────────────────────────
-
-def _style_ax(ax, grid_axis="x"):
-    for loc, spine in ax.spines.items():
-        spine.set_visible(loc in ("bottom", "left"))
-        if loc in ("bottom", "left"):
-            spine.set_color(RULE)
-            spine.set_linewidth(0.8)
-    ax.tick_params(which="major", length=4, width=0.8, labelsize=9)
-    if grid_axis == "x":
-        ax.xaxis.grid(True, color=GRID, linewidth=0.8, zorder=0)
-        ax.yaxis.grid(False)
-    else:
-        ax.yaxis.grid(True, color=GRID, linewidth=0.8, zorder=0)
-        ax.xaxis.grid(False)
-    ax.set_axisbelow(True)
 
 
 def _safe_show(fig, save_path=None):
@@ -232,52 +185,47 @@ def _safe_show(fig, save_path=None):
         plt.close(fig)
 
 
-# ──────────────────────────────────────────────────────────────────
-# 📊  Shared bar panel renderer
-# ──────────────────────────────────────────────────────────────────
-
 def _bar_panel(ax, items: list, color: str, title: str, xlabel: str,
                bar_height: float = 0.60, label_fontsize: float = 9,
                value_fontsize: float = 8.5, accent_top: int = 3):
-    """
-    Horizontal bar chart with ranked items.
-    Top `accent_top` bars are rendered at full opacity; rest slightly muted.
-    items: list of (label_str, count) in descending order.
-    """
     if not items:
         ax.text(0.5, 0.5, "No data", ha="center", va="center",
                 transform=ax.transAxes, color=TXT_MED)
-        ax.set_title(title, fontsize=11, fontweight="bold", color=TXT, pad=10)
+        # Title drawn 28 pt above axes top (below pill at 48 pt)
+        ax.annotate(title, xy=(0.5, 1), xycoords="axes fraction",
+                    xytext=(0, 28), textcoords="offset points",
+                    fontsize=11, fontweight="bold", color=TXT,
+                    ha="center", va="bottom", annotation_clip=False)
         return
 
     labels = [label for label, _ in items][::-1]
     values = [count for _, count in items][::-1]
     n      = len(values)
 
-    # Opacity: top entries full, rest slightly dimmed
-    alphas = [0.88 if (n - 1 - i) < accent_top else 0.60
-              for i in range(n)]
+    alphas = [0.88 if (n - 1 - i) < accent_top else 0.60 for i in range(n)]
 
     for i, (lbl, val, alpha) in enumerate(zip(labels, values, alphas)):
-        ax.barh(lbl, val, color=color, height=bar_height,
-                alpha=alpha, zorder=2)
+        ax.barh(lbl, val, color=color, height=bar_height, alpha=alpha, zorder=2)
 
     max_val = max(values)
     for i, (lbl, val) in enumerate(zip(labels, values)):
         ax.text(
-            val + max_val * 0.012,
-            i,
+            val + max_val * 0.012, i,
             f"{val:,}",
             va="center", fontsize=value_fontsize,
             color=TXT_MED, fontweight="normal",
         )
 
-    # Rank numbers on the y-axis labels
     ranked_labels = [f"#{n-i}  {lbl}" for i, lbl in enumerate(labels)]
     ax.set_yticks(range(n))
     ax.set_yticklabels(ranked_labels, fontsize=label_fontsize)
 
-    ax.set_title(title, fontsize=11, fontweight="bold", color=TXT, pad=10)
+    # Title drawn at 28 pt above axes top — sits between pill row (48 pt) and axes
+    ax.annotate(title, xy=(0.5, 1), xycoords="axes fraction",
+                xytext=(0, 28), textcoords="offset points",
+                fontsize=11, fontweight="bold", color=TXT,
+                ha="center", va="bottom", annotation_clip=False)
+
     ax.set_xlabel(xlabel, fontsize=8.5, color=TXT_MED, labelpad=6)
     ax.set_xlim(0, max_val * 1.22)
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
@@ -286,7 +234,6 @@ def _bar_panel(ax, items: list, color: str, title: str, xlabel: str,
     for lbl in ax.get_yticklabels():
         lbl.set_clip_on(False)
 
-    # Clean spines
     for loc, spine in ax.spines.items():
         spine.set_visible(loc in ("bottom",))
         if loc == "bottom":
@@ -297,43 +244,8 @@ def _bar_panel(ax, items: list, color: str, title: str, xlabel: str,
     ax.set_axisbelow(True)
 
 
-def _section_header(fig, ax, label: str, color: str, description: str):
-    """Draw a colored left-rule section header above an axes."""
-    bbox  = ax.get_position()
-    x_fig = bbox.x0
-    y_fig = bbox.y1 + 0.012
-
-    # Colored pill label
-    fig.text(x_fig, y_fig, f"  {label}  ",
-             fontsize=8, fontweight="bold", color="white",
-             va="bottom", ha="left",
-             bbox=dict(boxstyle="round,pad=0.30", facecolor=color,
-                       edgecolor="none", linewidth=0))
-    # Description beside it
-    fig.text(x_fig + 0.068, y_fig, description,
-             fontsize=8, color=TXT_MED, va="bottom", ha="left",
-             style="italic")
-
-
-# ──────────────────────────────────────────────────────────────────
-# 📊  PUBLIC FUNCTION
-# ──────────────────────────────────────────────────────────────────
-
 def get_text_analysis(data_source, save_path=None, top_n: int = 15):
-    """
-    Text Analysis — Keywords, Hashtags & Bigrams from the `text` column.
-
-    Layout (executive-ready):
-      Row 1 (full width) — Top Keywords: primary analytical signal
-      Row 2 (split 50/50) — Top Hashtags | Top Phrases (Bigrams)
-
-    Parameters
-    ----------
-    data_source : str or pd.DataFrame
-    save_path   : output PNG path
-    top_n       : entries per panel (default 15)
-    """
-    df = pd.read_csv(data_source) if isinstance(data_source, str)          else data_source.copy()
+    df = pd.read_csv(data_source) if isinstance(data_source, str) else data_source.copy()
 
     if "text" not in df.columns:
         raise ValueError("DataFrame must contain a 'text' column.")
@@ -341,7 +253,6 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
     N     = len(df)
     texts = df["text"]
 
-    # ── Extract ───────────────────────────────────────────────────────────────
     keyword_counts = _extract_keywords(texts)
     hashtag_counts = _extract_hashtags(texts)
     bigram_counts  = _extract_bigrams(texts)
@@ -350,20 +261,19 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
     n_hashtags  = sum(hashtag_counts.values())
     unique_tags = len(hashtag_counts)
 
-    top_n_sub = min(10, top_n)   # bottom panels capped at 10 for readability
+    top_n_sub = min(10, top_n)
 
     kw_items = keyword_counts.most_common(top_n)
-    ht_items = [(f"#{tag}", cnt) for tag, cnt
-                in hashtag_counts.most_common(top_n_sub)]
-    bi_items = [(f"{w1} {w2}", cnt) for (w1, w2), cnt
-                in bigram_counts.most_common(top_n_sub)]
+    ht_items = [(f"#{tag}", cnt) for tag, cnt in hashtag_counts.most_common(top_n_sub)]
+    bi_items = [(f"{w1} {w2}", cnt) for (w1, w2), cnt in bigram_counts.most_common(top_n_sub)]
 
     # ── Figure ───────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(18, 21), facecolor=BG)
+    # Extra vertical space (22 → was 21) gives the pill rows room to breathe
+    fig = plt.figure(figsize=(18, 22), facecolor=BG)
 
-    # ── Header band & KPI strip via FancyBboxPatch ───────────────────────────
     import matplotlib.patches as mpatches
 
+    # Header band
     fig.add_artist(mpatches.FancyBboxPatch(
         (0, 0.954), 1, 0.046, boxstyle="square,pad=0",
         facecolor=TXT, edgecolor="none",
@@ -373,6 +283,7 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
              ha="center", va="center",
              fontsize=16, fontweight="bold", color="white", zorder=3)
 
+    # KPI strip
     fig.add_artist(mpatches.FancyBboxPatch(
         (0, 0.916), 1, 0.038, boxstyle="square,pad=0",
         facecolor="#1E293B", edgecolor="none",
@@ -390,19 +301,20 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
         fig.text(xf, 0.924, lbl, ha="left", va="center",
                  fontsize=7.5, color=TXT_LT, zorder=3)
 
-    # ── Chart GridSpec ────────────────────────────────────────────────────────
+    # ── GridSpec: more top padding so pill row clears the KPI strip ──────────
     gs = gridspec.GridSpec(
         2, 2, figure=fig,
         left=0.13, right=0.97,
-        top=0.900, bottom=0.055,
-        hspace=0.18, wspace=0.40,
+        top=0.865,          # leave room above for pill + title of top panel
+        bottom=0.050,
+        hspace=0.28,
+        wspace=0.42,
         height_ratios=[1.1, 1.0],
     )
     ax_kw = fig.add_subplot(gs[0, :])
     ax_ht = fig.add_subplot(gs[1, 0])
     ax_bi = fig.add_subplot(gs[1, 1])
 
-    # ── Draw chart panels ─────────────────────────────────────────────────────
     _bar_panel(ax_kw, kw_items, C_KEYWORD,
                f"Top {top_n} Keywords — Most Frequent Terms in Discourse",
                "Number of Occurrences",
@@ -416,44 +328,45 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
                "Co-occurrences",
                bar_height=0.58, label_fontsize=9, value_fontsize=8.5)
 
-    # ── Pill badge + description + left rule ──────────────────────────────────
-    # Draw pills using fig.text() with figure-fraction coordinates derived from
-    # ax.get_position(). This bypasses all axes clipping entirely — the most
-    # reliable approach across all matplotlib versions.
-    fig.canvas.draw()  # force layout so get_position() returns final coords
-
-    for ax, pill, color, desc in [
+    # ── Pill badges drawn with axes.annotate (axes-fraction coords) ──────────
+    # This keeps pill + description anchored to the axes regardless of figure
+    # size, avoiding the overlap caused by figure-fraction drift.
+    panel_meta = [
         (ax_kw, "KEYWORDS", C_KEYWORD, "Individual words driving the conversation"),
         (ax_ht, "HASHTAGS", C_HASHTAG, "Organised campaigns & topics"),
         (ax_bi, "BIGRAMS",  C_BIGRAM,  "Two-word phrases — people, places & concepts"),
-    ]:
-        pos = ax.get_position()  # Bbox in figure fraction (x0, y0, x1, y1)
-        x0  = pos.x0
-        y1  = pos.y1  # top of axes in figure fraction
+    ]
 
-        # Offset: 0.012 figure-fraction units above the axes top
-        y_pill = y1 + 0.012
-
-        # Left color rule on axes
+    for ax, pill, color, desc in panel_meta:
+        # Left color rule
         ax.plot([0, 0], [0, 1], color=color, linewidth=3,
                 transform=ax.transAxes, clip_on=False, zorder=10)
 
-        # Pill badge on figure
-        fig.text(x0, y_pill, f" {pill} ",
-                 fontsize=7.5, fontweight="bold", color="white",
-                 va="bottom", ha="left", zorder=20,
-                 bbox=dict(boxstyle="round,pad=0.28",
-                           facecolor=color, edgecolor="none"))
+        # Pill badge — placed just above the axes using annotate so it scales
+        # with the axes and never drifts into the title
+        # Pill badge at 48 pt above axes top — well clear of title at 28 pt
+        ax.annotate(
+            f"  {pill}  ",
+            xy=(0, 1), xycoords="axes fraction",
+            xytext=(0, 48), textcoords="offset points",
+            fontsize=7.5, fontweight="bold", color="white",
+            va="bottom", ha="left", annotation_clip=False,
+            bbox=dict(boxstyle="round,pad=0.28",
+                      facecolor=color, edgecolor="none"),
+        )
 
-        # Description beside pill — approximate width offset in figure fraction
-        pill_fig_w = len(pill) * 0.0062 + 0.030
-        fig.text(x0 + pill_fig_w, y_pill, desc,
-                 fontsize=8, color=TXT_MED, style="italic",
-                 va="bottom", ha="left")
+        # Description beside the pill
+        ax.annotate(
+            desc,
+            xy=(0, 1), xycoords="axes fraction",
+            xytext=(65, 48), textcoords="offset points",
+            fontsize=8, color=TXT_MED, style="italic",
+            va="bottom", ha="left", annotation_clip=False,
+        )
 
     # ── Footer ────────────────────────────────────────────────────────────────
     fig.text(
-        0.5, 0.022,
+        0.5, 0.020,
         "Bigrams = most frequent two-word combinations after removing "
         "stopwords and domain-specific noise.  "
         f"All @mentions were obfuscated numeric IDs ({n_obfuscated:,} excluded).",
