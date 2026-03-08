@@ -300,6 +300,13 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
                  fontsize=11, fontweight="bold", color="#60A5FA", zorder=3)
         fig.text(xf, 0.924, lbl, ha="left", va="center",
                  fontsize=7.5, color=TXT_LT, zorder=3)
+        # Thin vertical divider before each KPI except the first
+        if i > 0:
+            fig.add_artist(mpatches.FancyBboxPatch(
+                (xf - 0.018, 0.920), 0.0015, 0.026,
+                boxstyle="square,pad=0",
+                facecolor="#334155", edgecolor="none",
+                transform=fig.transFigure, clip_on=False, zorder=3))
 
     # ── GridSpec: more top padding so pill row clears the KPI strip ──────────
     gs = gridspec.GridSpec(
