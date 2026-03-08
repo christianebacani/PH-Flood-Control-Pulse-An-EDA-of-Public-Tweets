@@ -109,6 +109,12 @@ DOMAIN_NOISE = {
     # Filipino function/filler words not caught by stopword list
     "kaban", "bayan", "ibalik", "lng", "tlga", "naman", "kasi", "kahit",
     "asawang", "1st", "mayor", "vico",
+    # More Filipino verb prefixes / infixes with no standalone meaning
+    "nya", "nag", "pag", "mga", "sec", "pangulong", "nepo",
+    # Duplicate stems (cleaner form already present)
+    "contractor",   # "contractors" is the cleaner plural form
+    # Single-name fragments already captured in bigrams
+    "martin", "dizon", "hearing",
 }
 
 # ──────────────────────────────────────────────────────────────────
@@ -222,7 +228,9 @@ def _safe_show(fig, save_path=None):
 # 📊  Single horizontal bar panel
 # ──────────────────────────────────────────────────────────────────
 
-def _bar_panel(ax, items: list, color: str, title: str, xlabel: str):
+def _bar_panel(ax, items: list, color: str, title: str, xlabel: str,
+               bar_height: float = 0.62, label_fontsize: float = 9,
+               value_fontsize: float = 8.5):
     """items: list of (label_str, count) in descending order."""
     if not items:
         ax.text(0.5, 0.5, "No data", ha="center", va="center",
@@ -233,7 +241,7 @@ def _bar_panel(ax, items: list, color: str, title: str, xlabel: str):
     labels = [label for label, _ in items][::-1]
     values = [count for _, count in items][::-1]
 
-    bars = ax.barh(labels, values, color=color, height=0.62,
+    bars = ax.barh(labels, values, color=color, height=bar_height,
                    alpha=0.85, zorder=2)
 
     max_val = max(values)
@@ -242,14 +250,14 @@ def _bar_panel(ax, items: list, color: str, title: str, xlabel: str):
             val + max_val * 0.01,
             bar.get_y() + bar.get_height() / 2,
             f"{val:,}",
-            va="center", fontsize=8.5, color=TXT_MED,
+            va="center", fontsize=value_fontsize, color=TXT_MED,
         )
 
-    ax.set_title(title, pad=10)
+    ax.set_title(title, pad=10, fontsize=11)
     ax.set_xlabel(xlabel, fontsize=9, color=TXT_MED, labelpad=6)
-    ax.set_xlim(0, max_val * 1.28)
+    ax.set_xlim(0, max_val * 1.25)
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    ax.tick_params(axis="y", labelsize=9)
+    ax.tick_params(axis="y", labelsize=label_fontsize)
     for lbl in ax.get_yticklabels():
         lbl.set_clip_on(False)
     _style_ax(ax, grid_axis="x")
@@ -297,14 +305,24 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 20):
     bi_items = [(f"{w1} {w2}", cnt) for (w1, w2), cnt in bigram_counts.most_common(top_n)]
 
     # ── Layout ────────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(22, 14))
+    # Professional hierarchy:
+    #   Row 1 (top, full-width) — Keywords: the analytical foundation
+    #   Row 2 (bottom, split)   — Hashtags | Bigrams: supplementary lenses
+    # top_n_main: keywords show more entries; bottom panels show fewer for clarity
+    top_n_main   = top_n          # keywords
+    top_n_sub    = max(10, top_n // 2)  # hashtags + bigrams — 10 entries each
+
+    ht_items_sub = [(f"#{tag}", cnt) for tag, cnt in hashtag_counts.most_common(top_n_sub)]
+    bi_items_sub = [(f"{w1} {w2}", cnt) for (w1, w2), cnt in bigram_counts.most_common(top_n_sub)]
+
+    fig = plt.figure(figsize=(18, 18))
     fig.suptitle(
         "Text Analysis \u2014 Keywords, Hashtags & Top Phrases",
         fontsize=17, fontweight="bold", color=TXT, y=0.99,
     )
 
     fig.text(
-        0.5, 0.965,
+        0.5, 0.968,
         f"{N:,} tweets  ·  {n_hashtags:,} hashtag uses ({unique_tags:,} unique)  "
         f"·  {unique_bi:,} unique bigrams  "
         f"·  {n_obfuscated:,} obfuscated @IDs excluded from mentions",
@@ -312,27 +330,49 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 20):
     )
 
     gs = gridspec.GridSpec(
-        1, 3, figure=fig,
-        left=0.09, right=0.97,
-        top=0.92, bottom=0.06,
-        wspace=0.55,
+        2, 2, figure=fig,
+        left=0.12, right=0.97,
+        top=0.945, bottom=0.05,
+        hspace=0.38, wspace=0.45,
+        height_ratios=[1.15, 1],
     )
 
-    ax_kw = fig.add_subplot(gs[0, 0])
-    ax_ht = fig.add_subplot(gs[0, 1])
-    ax_bi = fig.add_subplot(gs[0, 2])
+    # Row 1: Keywords — spans full width
+    ax_kw = fig.add_subplot(gs[0, :])
+    # Row 2: Hashtags left, Bigrams right
+    ax_ht = fig.add_subplot(gs[1, 0])
+    ax_bi = fig.add_subplot(gs[1, 1])
 
-    _bar_panel(ax_kw, kw_items, C_KEYWORD,
-               f"Top {top_n} Keywords",            "Occurrences")
-    _bar_panel(ax_ht, ht_items, C_HASHTAG,
-               f"Top {top_n} Hashtags",             "Uses")
-    _bar_panel(ax_bi, bi_items, C_BIGRAM,
-               f"Top {top_n} Phrases (Bigrams)",    "Co-occurrences")
+    _bar_panel(ax_kw, kw_items,   C_KEYWORD,
+               f"Top {top_n_main} Keywords — Most Frequent Terms",
+               "Occurrences",
+               bar_height=0.55, label_fontsize=9, value_fontsize=8.5)
+
+    _bar_panel(ax_ht, ht_items_sub, C_HASHTAG,
+               f"Top {top_n_sub} Hashtags",
+               "Uses")
+
+    _bar_panel(ax_bi, bi_items_sub, C_BIGRAM,
+               f"Top {top_n_sub} Phrases (Bigrams)",
+               "Co-occurrences")
+
+    # Section labels above each panel
+    for ax, label, color in [
+        (ax_kw, "KEYWORDS", C_KEYWORD),
+        (ax_ht, "HASHTAGS", C_HASHTAG),
+        (ax_bi, "BIGRAMS",  C_BIGRAM),
+    ]:
+        ax.text(-0.01, 1.055, label,
+                transform=ax.transAxes, fontsize=7.5,
+                fontweight="bold", color=color,
+                va="bottom", ha="left",
+                bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
+                          edgecolor=color, linewidth=0.8))
 
     fig.text(
-        0.5, 0.01,
-        "* Phrases panel shows the most frequent two-word combinations after removing stopwords and domain noise.  "
-        f"{n_obfuscated:,} numeric @IDs (anonymised accounts) were excluded from mention analysis.",
+        0.5, 0.015,
+        "* Bigrams = most frequent two-word combinations after removing stopwords and domain noise.  "
+        f"{n_obfuscated:,} numeric @IDs (anonymised accounts) were excluded.",
         ha="center", fontsize=8, color=TXT_LT, style="italic",
     )
 
