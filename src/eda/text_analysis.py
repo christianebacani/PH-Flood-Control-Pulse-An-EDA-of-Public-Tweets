@@ -115,6 +115,9 @@ DOMAIN_NOISE = {
     "contractor",   # "contractors" is the cleaner plural form
     # Single-name fragments already captured in bigrams
     "martin", "dizon", "hearing",
+    # Remaining noise from latest output
+    "dating", "read", "ngayon", "umano", "edsa", "infrastructure",
+    "senator", "witness", "state",
 }
 
 # ──────────────────────────────────────────────────────────────────
@@ -225,64 +228,107 @@ def _safe_show(fig, save_path=None):
 
 
 # ──────────────────────────────────────────────────────────────────
-# 📊  Single horizontal bar panel
+# 📊  Shared bar panel renderer
 # ──────────────────────────────────────────────────────────────────
 
 def _bar_panel(ax, items: list, color: str, title: str, xlabel: str,
-               bar_height: float = 0.62, label_fontsize: float = 9,
-               value_fontsize: float = 8.5):
-    """items: list of (label_str, count) in descending order."""
+               bar_height: float = 0.60, label_fontsize: float = 9,
+               value_fontsize: float = 8.5, accent_top: int = 3):
+    """
+    Horizontal bar chart with ranked items.
+    Top `accent_top` bars are rendered at full opacity; rest slightly muted.
+    items: list of (label_str, count) in descending order.
+    """
     if not items:
         ax.text(0.5, 0.5, "No data", ha="center", va="center",
                 transform=ax.transAxes, color=TXT_MED)
-        ax.set_title(title)
+        ax.set_title(title, fontsize=11, fontweight="bold", color=TXT, pad=10)
         return
 
     labels = [label for label, _ in items][::-1]
     values = [count for _, count in items][::-1]
+    n      = len(values)
 
-    bars = ax.barh(labels, values, color=color, height=bar_height,
-                   alpha=0.85, zorder=2)
+    # Opacity: top entries full, rest slightly dimmed
+    alphas = [0.88 if (n - 1 - i) < accent_top else 0.60
+              for i in range(n)]
+
+    for i, (lbl, val, alpha) in enumerate(zip(labels, values, alphas)):
+        ax.barh(lbl, val, color=color, height=bar_height,
+                alpha=alpha, zorder=2)
 
     max_val = max(values)
-    for bar, val in zip(bars, values):
+    for i, (lbl, val) in enumerate(zip(labels, values)):
         ax.text(
-            val + max_val * 0.01,
-            bar.get_y() + bar.get_height() / 2,
+            val + max_val * 0.012,
+            i,
             f"{val:,}",
-            va="center", fontsize=value_fontsize, color=TXT_MED,
+            va="center", fontsize=value_fontsize,
+            color=TXT_MED, fontweight="normal",
         )
 
-    ax.set_title(title, pad=10, fontsize=11)
-    ax.set_xlabel(xlabel, fontsize=9, color=TXT_MED, labelpad=6)
-    ax.set_xlim(0, max_val * 1.25)
+    # Rank numbers on the y-axis labels
+    ranked_labels = [f"#{n-i}  {lbl}" for i, lbl in enumerate(labels)]
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(ranked_labels, fontsize=label_fontsize)
+
+    ax.set_title(title, fontsize=11, fontweight="bold", color=TXT, pad=10)
+    ax.set_xlabel(xlabel, fontsize=8.5, color=TXT_MED, labelpad=6)
+    ax.set_xlim(0, max_val * 1.22)
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    ax.tick_params(axis="y", labelsize=label_fontsize)
+    ax.tick_params(axis="y", labelsize=label_fontsize, length=0)
+    ax.tick_params(axis="x", labelsize=8)
     for lbl in ax.get_yticklabels():
         lbl.set_clip_on(False)
-    _style_ax(ax, grid_axis="x")
+
+    # Clean spines
+    for loc, spine in ax.spines.items():
+        spine.set_visible(loc in ("bottom",))
+        if loc == "bottom":
+            spine.set_color(RULE)
+            spine.set_linewidth(0.8)
+    ax.xaxis.grid(True, color=GRID, linewidth=0.7, zorder=0)
+    ax.yaxis.grid(False)
+    ax.set_axisbelow(True)
+
+
+def _section_header(fig, ax, label: str, color: str, description: str):
+    """Draw a colored left-rule section header above an axes."""
+    bbox  = ax.get_position()
+    x_fig = bbox.x0
+    y_fig = bbox.y1 + 0.012
+
+    # Colored pill label
+    fig.text(x_fig, y_fig, f"  {label}  ",
+             fontsize=8, fontweight="bold", color="white",
+             va="bottom", ha="left",
+             bbox=dict(boxstyle="round,pad=0.30", facecolor=color,
+                       edgecolor="none", linewidth=0))
+    # Description beside it
+    fig.text(x_fig + 0.068, y_fig, description,
+             fontsize=8, color=TXT_MED, va="bottom", ha="left",
+             style="italic")
 
 
 # ──────────────────────────────────────────────────────────────────
 # 📊  PUBLIC FUNCTION
 # ──────────────────────────────────────────────────────────────────
 
-def get_text_analysis(data_source, save_path=None, top_n: int = 20):
+def get_text_analysis(data_source, save_path=None, top_n: int = 15):
     """
-    Text Analysis — top keywords, hashtags, and bigrams from the `text` column.
+    Text Analysis — Keywords, Hashtags & Bigrams from the `text` column.
 
-    Note: all @mentions in this dataset are obfuscated numeric IDs (anonymised).
-    The third panel therefore shows top bigrams (two-word phrases) instead,
-    which provide richer analytical signal about the topics being discussed.
+    Layout (executive-ready):
+      Row 1 (full width) — Top Keywords: primary analytical signal
+      Row 2 (split 50/50) — Top Hashtags | Top Phrases (Bigrams)
 
     Parameters
     ----------
     data_source : str or pd.DataFrame
-    save_path   : output file path (PNG)
-    top_n       : how many top entries to show per panel (default 20)
+    save_path   : output PNG path
+    top_n       : entries per panel (default 15)
     """
-    df = pd.read_csv(data_source) if isinstance(data_source, str) \
-         else data_source.copy()
+    df = pd.read_csv(data_source) if isinstance(data_source, str)          else data_source.copy()
 
     if "text" not in df.columns:
         raise ValueError("DataFrame must contain a 'text' column.")
@@ -298,82 +344,132 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 20):
 
     n_hashtags  = sum(hashtag_counts.values())
     unique_tags = len(hashtag_counts)
-    unique_bi   = len(bigram_counts)
+
+    top_n_sub = min(10, top_n)   # bottom panels capped at 10 for readability
 
     kw_items = keyword_counts.most_common(top_n)
-    ht_items = [(f"#{tag}", cnt) for tag, cnt in hashtag_counts.most_common(top_n)]
-    bi_items = [(f"{w1} {w2}", cnt) for (w1, w2), cnt in bigram_counts.most_common(top_n)]
+    ht_items = [(f"#{tag}", cnt) for tag, cnt
+                in hashtag_counts.most_common(top_n_sub)]
+    bi_items = [(f"{w1} {w2}", cnt) for (w1, w2), cnt
+                in bigram_counts.most_common(top_n_sub)]
 
-    # ── Layout ────────────────────────────────────────────────────────────────
-    # Professional hierarchy:
-    #   Row 1 (top, full-width) — Keywords: the analytical foundation
-    #   Row 2 (bottom, split)   — Hashtags | Bigrams: supplementary lenses
-    # top_n_main: keywords show more entries; bottom panels show fewer for clarity
-    top_n_main   = top_n          # keywords
-    top_n_sub    = max(10, top_n // 2)  # hashtags + bigrams — 10 entries each
-
-    ht_items_sub = [(f"#{tag}", cnt) for tag, cnt in hashtag_counts.most_common(top_n_sub)]
-    bi_items_sub = [(f"{w1} {w2}", cnt) for (w1, w2), cnt in bigram_counts.most_common(top_n_sub)]
-
-    fig = plt.figure(figsize=(18, 18))
-    fig.suptitle(
-        "Text Analysis \u2014 Keywords, Hashtags & Top Phrases",
-        fontsize=17, fontweight="bold", color=TXT, y=0.99,
-    )
-
-    fig.text(
-        0.5, 0.968,
-        f"{N:,} tweets  ·  {n_hashtags:,} hashtag uses ({unique_tags:,} unique)  "
-        f"·  {unique_bi:,} unique bigrams  "
-        f"·  {n_obfuscated:,} obfuscated @IDs excluded from mentions",
-        ha="center", fontsize=9, color=TXT_MED,
-    )
+    # ── Figure ────────────────────────────────────────────────────────────────
+    # Use a 4-row GridSpec:
+    #   Row 0 — header title bar
+    #   Row 1 — KPI stats strip
+    #   Row 2 — keywords (full width)
+    #   Row 3 — hashtags | bigrams (split)
+    fig = plt.figure(figsize=(18, 22), facecolor=BG)
 
     gs = gridspec.GridSpec(
-        2, 2, figure=fig,
-        left=0.12, right=0.97,
-        top=0.945, bottom=0.05,
-        hspace=0.38, wspace=0.45,
-        height_ratios=[1.15, 1],
+        4, 2, figure=fig,
+        left=0.13, right=0.97,
+        top=0.985, bottom=0.048,
+        hspace=0.0,
+        wspace=0.40,
+        height_ratios=[0.045, 0.038, 0.55, 0.48],
     )
 
-    # Row 1: Keywords — spans full width
-    ax_kw = fig.add_subplot(gs[0, :])
-    # Row 2: Hashtags left, Bigrams right
-    ax_ht = fig.add_subplot(gs[1, 0])
-    ax_bi = fig.add_subplot(gs[1, 1])
+    # ── Header axes ───────────────────────────────────────────────────────────
+    ax_header = fig.add_subplot(gs[0, :])
+    ax_header.set_facecolor(TXT)
+    ax_header.set_xlim(0, 1)
+    ax_header.set_ylim(0, 1)
+    ax_header.axis("off")
+    ax_header.text(0.5, 0.5,
+                   "Text Analysis — Keywords, Hashtags & Top Phrases",
+                   ha="center", va="center",
+                   fontsize=16, fontweight="bold", color="white",
+                   transform=ax_header.transAxes)
 
-    _bar_panel(ax_kw, kw_items,   C_KEYWORD,
-               f"Top {top_n_main} Keywords — Most Frequent Terms",
-               "Occurrences",
-               bar_height=0.55, label_fontsize=9, value_fontsize=8.5)
+    # ── KPI strip axes ────────────────────────────────────────────────────────
+    ax_kpi = fig.add_subplot(gs[1, :])
+    ax_kpi.set_facecolor("#1E293B")
+    ax_kpi.set_xlim(0, 1)
+    ax_kpi.set_ylim(0, 1)
+    ax_kpi.axis("off")
 
-    _bar_panel(ax_ht, ht_items_sub, C_HASHTAG,
+    kpis = [
+        (f"{N:,}",           "tweets analysed"),
+        (f"{n_hashtags:,}",  "hashtag uses"),
+        (f"{unique_tags:,}", "unique hashtags"),
+        (f"{n_obfuscated:,}","obfuscated @IDs excluded"),
+    ]
+    for i, (val, lbl) in enumerate(kpis):
+        x = 0.12 + i * 0.24
+        ax_kpi.text(x, 0.68, val,
+                    ha="left", va="center",
+                    fontsize=11, fontweight="bold", color="#60A5FA",
+                    transform=ax_kpi.transAxes)
+        ax_kpi.text(x, 0.18, lbl,
+                    ha="left", va="center",
+                    fontsize=7.5, color=TXT_LT,
+                    transform=ax_kpi.transAxes)
+
+    # ── Chart axes ────────────────────────────────────────────────────────────
+    ax_kw = fig.add_subplot(gs[2, :])
+    ax_ht = fig.add_subplot(gs[3, 0])
+    ax_bi = fig.add_subplot(gs[3, 1])
+
+    # Add breathing room between header rows and chart rows
+    gs.update(hspace=0.44)
+
+    # ── Draw chart panels ─────────────────────────────────────────────────────
+    _bar_panel(ax_kw, kw_items, C_KEYWORD,
+               f"Top {top_n} Keywords — Most Frequent Terms in Discourse",
+               "Number of Occurrences",
+               bar_height=0.52, label_fontsize=9, value_fontsize=8.5)
+
+    _bar_panel(ax_ht, ht_items, C_HASHTAG,
                f"Top {top_n_sub} Hashtags",
-               "Uses")
+               "Number of Uses",
+               bar_height=0.58, label_fontsize=9, value_fontsize=8.5)
 
-    _bar_panel(ax_bi, bi_items_sub, C_BIGRAM,
+    _bar_panel(ax_bi, bi_items, C_BIGRAM,
                f"Top {top_n_sub} Phrases (Bigrams)",
-               "Co-occurrences")
+               "Co-occurrences",
+               bar_height=0.58, label_fontsize=9, value_fontsize=8.5)
 
-    # Section labels above each panel
-    for ax, label, color in [
-        (ax_kw, "KEYWORDS", C_KEYWORD),
-        (ax_ht, "HASHTAGS", C_HASHTAG),
-        (ax_bi, "BIGRAMS",  C_BIGRAM),
+    # ── Section pill + description + left rule above each chart panel ─────────
+    for ax, pill_lbl, color, desc, full_title in [
+        (ax_kw, "KEYWORDS", C_KEYWORD,
+         "Individual words driving the conversation",
+         f"Top {top_n} Keywords — Most Frequent Terms in Discourse"),
+        (ax_ht, "HASHTAGS", C_HASHTAG,
+         "Organised campaigns & topics",
+         f"Top {top_n_sub} Hashtags"),
+        (ax_bi, "BIGRAMS",  C_BIGRAM,
+         "Two-word phrases — people, places & concepts",
+         f"Top {top_n_sub} Phrases (Bigrams)"),
     ]:
-        ax.text(-0.01, 1.055, label,
-                transform=ax.transAxes, fontsize=7.5,
-                fontweight="bold", color=color,
+        # Left color rule
+        ax.plot([0, 0], [0, 1], color=color, linewidth=3,
+                transform=ax.transAxes, clip_on=False, zorder=10)
+        # Pill badge — sits cleanly above chart title space
+        ax.text(0.003, 1.045, f" {pill_lbl} ",
+                transform=ax.transAxes,
+                fontsize=7.5, fontweight="bold", color="white",
                 va="bottom", ha="left",
-                bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
-                          edgecolor=color, linewidth=0.8))
+                bbox=dict(boxstyle="round,pad=0.28", facecolor=color,
+                          edgecolor="none"))
+        # Description text beside pill
+        pill_width = len(pill_lbl) * 0.009 + 0.055
+        ax.text(pill_width, 1.045, desc,
+                transform=ax.transAxes,
+                fontsize=8, color=TXT_MED,
+                va="bottom", ha="left", style="italic")
+        # Chart title
+        ax.set_title(full_title,
+                     fontsize=10.5, fontweight="bold",
+                     color=TXT, loc="left", pad=6)
 
+    # ── Footer ────────────────────────────────────────────────────────────────
     fig.text(
-        0.5, 0.015,
-        "* Bigrams = most frequent two-word combinations after removing stopwords and domain noise.  "
-        f"{n_obfuscated:,} numeric @IDs (anonymised accounts) were excluded.",
-        ha="center", fontsize=8, color=TXT_LT, style="italic",
+        0.5, 0.022,
+        "Bigrams = most frequent two-word combinations after removing "
+        "stopwords and domain-specific noise.  "
+        f"All @mentions were obfuscated numeric IDs ({n_obfuscated:,} excluded).",
+        ha="center", fontsize=7.5, color=TXT_LT, style="italic",
     )
 
     _safe_show(fig, save_path)
