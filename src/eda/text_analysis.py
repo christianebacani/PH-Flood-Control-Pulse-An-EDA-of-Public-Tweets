@@ -87,9 +87,8 @@ FILIPINO_STOPWORDS = {
 STOPWORDS = ENGLISH_STOPWORDS | FILIPINO_STOPWORDS
 
 # Domain noise: ultra-high frequency words with no analytical signal.
-# Also includes fragments of "Dept of Public Works and Highways Blue Ribbon
-# Committee" which produce garbage bigrams like "public works", "works highways",
-# "department public", "blue ribbon" after stopword removal.
+# Includes DPWH full-name fragments, generic political words, and
+# Filipino function words that slipped through the stopword filter.
 DOMAIN_NOISE = {
     # Core dataset terms (appear in nearly every tweet)
     "flood", "control", "dpwh", "flooding", "project", "projects",
@@ -99,13 +98,17 @@ DOMAIN_NOISE = {
     # Generic gov/political words with no specificity in this corpus
     "senate", "committee", "budget", "president", "official",
     "office", "congress", "house", "government", "administration",
-    # Vague high-frequency words
+    # Vague/generic high-frequency words
     "people", "time", "year", "years", "money",
     "new", "big", "good", "bad", "great", "many", "much",
-    # Abbreviations / fragments that slipped keyword filter
-    "sen", "his", "pnp", "gov",
-    # Filipino function words not caught by stopword list
-    "kaban", "lng", "tlga", "naman", "kasi", "kahit",
+    "city", "district", "secretary", "commission", "independent",
+    # Short abbreviations and fragments
+    "sen", "his", "rep", "gov", "pnp", "nyo", "mag",
+    # Stems/variants already represented by cleaner forms
+    "corrupt",   # redundant — "corruption" already in keywords
+    # Filipino function/filler words not caught by stopword list
+    "kaban", "bayan", "ibalik", "lng", "tlga", "naman", "kasi", "kahit",
+    "asawang", "1st", "mayor", "vico",
 }
 
 # ──────────────────────────────────────────────────────────────────
