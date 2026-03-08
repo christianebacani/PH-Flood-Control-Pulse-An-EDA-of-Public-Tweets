@@ -473,3 +473,96 @@ def get_text_analysis(data_source, save_path=None, top_n: int = 15):
     )
 
     _safe_show(fig, save_path)
+    # ── Figure ───────────────────────────────────────────────────────────────
+    # Strategy: use fig.add_axes() for header/KPI (absolute positions),
+    # and GridSpec only for the 3 chart panels. This avoids hspace conflicts
+    # between the thin header rows and taller chart rows.
+    fig = plt.figure(figsize=(18, 22), facecolor=BG)
+
+    # ── Header band (absolute, top of figure) ────────────────────────────────
+    ax_hdr = fig.add_axes([0, 0.954, 1, 0.046])
+    ax_hdr.set_facecolor(TXT)
+    ax_hdr.axis("off")
+    ax_hdr.text(0.5, 0.50,
+                "Text Analysis — Keywords, Hashtags & Top Phrases",
+                ha="center", va="center",
+                fontsize=16, fontweight="bold", color="white",
+                transform=ax_hdr.transAxes)
+
+    # ── KPI strip (absolute, just below header) ───────────────────────────────
+    ax_kpi = fig.add_axes([0, 0.916, 1, 0.038])
+    ax_kpi.set_facecolor("#1E293B")
+    ax_kpi.axis("off")
+    kpis = [
+        (f"{N:,}",           "tweets analysed"),
+        (f"{n_hashtags:,}",  "hashtag uses"),
+        (f"{unique_tags:,}", "unique hashtags"),
+        (f"{n_obfuscated:,}","obfuscated @IDs excluded"),
+    ]
+    for i, (val, lbl) in enumerate(kpis):
+        x = 0.07 + i * 0.235
+        ax_kpi.text(x, 0.70, val, ha="left", va="center",
+                    fontsize=11, fontweight="bold", color="#60A5FA",
+                    transform=ax_kpi.transAxes)
+        ax_kpi.text(x, 0.18, lbl, ha="left", va="center",
+                    fontsize=7.5, color=TXT_LT,
+                    transform=ax_kpi.transAxes)
+
+    # ── Chart GridSpec (positioned below header) ──────────────────────────────
+    gs = gridspec.GridSpec(
+        2, 2, figure=fig,
+        left=0.13, right=0.97,
+        top=0.895, bottom=0.050,
+        hspace=0.52, wspace=0.40,
+        height_ratios=[1.15, 1.0],
+    )
+    ax_kw = fig.add_subplot(gs[0, :])
+    ax_ht = fig.add_subplot(gs[1, 0])
+    ax_bi = fig.add_subplot(gs[1, 1])
+
+    # ── Draw chart panels ─────────────────────────────────────────────────────
+    _bar_panel(ax_kw, kw_items, C_KEYWORD,
+               f"Top {top_n} Keywords — Most Frequent Terms in Discourse",
+               "Number of Occurrences",
+               bar_height=0.52, label_fontsize=9, value_fontsize=8.5)
+    _bar_panel(ax_ht, ht_items, C_HASHTAG,
+               f"Top {top_n_sub} Hashtags",
+               "Number of Uses",
+               bar_height=0.58, label_fontsize=9, value_fontsize=8.5)
+    _bar_panel(ax_bi, bi_items, C_BIGRAM,
+               f"Top {top_n_sub} Phrases (Bigrams)",
+               "Co-occurrences",
+               bar_height=0.58, label_fontsize=9, value_fontsize=8.5)
+
+    # ── Pill badge + description + left rule above each panel ─────────────────
+    for ax, pill, color, desc in [
+        (ax_kw, "KEYWORDS", C_KEYWORD, "Individual words driving the conversation"),
+        (ax_ht, "HASHTAGS", C_HASHTAG, "Organised campaigns & topics"),
+        (ax_bi, "BIGRAMS",  C_BIGRAM,  "Two-word phrases — people, places & concepts"),
+    ]:
+        ax.plot([0, 0], [0, 1], color=color, linewidth=3,
+                transform=ax.transAxes, clip_on=False, zorder=10)
+        ax.annotate(f" {pill} ",
+                    xy=(0, 1), xycoords="axes fraction",
+                    xytext=(2, 20), textcoords="offset points",
+                    fontsize=7.5, fontweight="bold", color="white",
+                    va="bottom", ha="left",
+                    bbox=dict(boxstyle="round,pad=0.28",
+                              facecolor=color, edgecolor="none"))
+        ax.annotate(desc,
+                    xy=(0, 1), xycoords="axes fraction",
+                    xytext=(len(pill) * 6.5 + 16, 20),
+                    textcoords="offset points",
+                    fontsize=8, color=TXT_MED,
+                    va="bottom", ha="left", style="italic")
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+    fig.text(
+        0.5, 0.020,
+        "Bigrams = most frequent two-word combinations after removing "
+        "stopwords and domain-specific noise.  "
+        f"All @mentions were obfuscated numeric IDs ({n_obfuscated:,} excluded).",
+        ha="center", fontsize=7.5, color=TXT_LT, style="italic",
+    )
+
+    _safe_show(fig, save_path)
