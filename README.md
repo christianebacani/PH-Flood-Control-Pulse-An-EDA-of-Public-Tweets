@@ -25,7 +25,7 @@ This project explores nearly **200,000 public tweets** from influential Twitter/
   - [Data Quality](#data-quality-1)
   - [Engagement Distribution](#univariate-analysis--tweet-engagement)
   - [Categoricals](#univariate-analysis--tweet-categoricals)
-  - [Volume Over Time](#univariate-analysis--tweet-volume-over-time)
+  - [Temporal Distribution](#temporal-distribution)
 - [Preprocessing Summary](#preprocessing-summary)
 - [Text Analysis](#text-analysis--keywords-hashtags--top-phrases)
 
@@ -261,9 +261,9 @@ This is exactly what you'd expect from institutional accounts covering a governm
 
 ---
 
-### Univariate Analysis — Tweet Volume Over Time
+### Temporal Distribution
 
-![Univariate Analysis — Tweet Volume Over Time](output/for_export_dpwh_floodcontrol_temporal_distribution.png)
+![Temporal Distribution — Tweet Volume Over Time](output/for_export_dpwh_floodcontrol_temporal_distribution.png)
 
 The timeline has one story that drowns out everything else: **September 21 was an event.**
 
