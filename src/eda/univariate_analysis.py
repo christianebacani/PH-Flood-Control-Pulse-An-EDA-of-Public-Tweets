@@ -563,7 +563,7 @@ def get_temporal_distribution(data_source, save_path=None,
 
     fig, ax = plt.subplots(figsize=(16, 5))
     fig.suptitle(
-        "Univariate Analysis \u2014 Tweet Volume Over Time",
+        "Temporal Distribution \u2014 Tweet Volume Over Time",
         fontsize=17, fontweight="bold", color=TXT, y=1.02,
     )
 
