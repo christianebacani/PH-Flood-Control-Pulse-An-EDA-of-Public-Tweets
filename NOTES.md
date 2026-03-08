@@ -32,4 +32,5 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Check the output for the module "text_analysis" by letting the claude model do it "https://claude.ai/chat/dab83a41-8d5c-4e12-ae89-e04c4df6f002"
+    - Check the existing output of "src/eda/text_analysis.py" module by verifying it by Claude AI
+    from the existing chat name "Verifying output accuracy" from my personal account.
