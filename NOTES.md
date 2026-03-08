@@ -32,5 +32,4 @@ Imputation strategies:
 ---
 
 - TODO:
-    - Reflect the changes of the temporal distribution to the markdown and make sure it's in the right order
     - Perform bivariate analysis now using Claude AI of my personal account and validate it using the model also.
