@@ -191,52 +191,52 @@ def _panel_A(ax, df):
     for g, st, col, lt, cnt, y in zip(
             groups, stats_list, colors, lt_cols, counts, y_pos):
 
-        # Ensure IQR band has a minimum visible width (at least 2% of x_max)
+        # IQR band — minimum 3% of x_max so it is always clearly visible
         iqr_left  = st["p25"]
-        iqr_width = max(st["p75"] - st["p25"], x_max * 0.02)
+        iqr_width = max(st["p75"] - st["p25"], x_max * 0.03)
 
-        # P25–P75 IQR band
+        # P25–P75 IQR band (tall enough to clearly see)
         ax.barh(y, iqr_width, left=iqr_left,
-                height=0.30, color=lt, alpha=0.85, zorder=2)
+                height=0.38, color=lt, alpha=0.90, zorder=2)
 
-        # P90 whisker — full line from 0 to P90 so it is always visible
+        # P90 dashed whisker line
         ax.plot([0, st["p90"]], [y, y],
-                color=col, linewidth=1.5, alpha=0.35, zorder=3,
+                color=col, linewidth=1.5, alpha=0.30, zorder=3,
                 linestyle="--", dashes=(4, 3))
 
-        # Stem from 0 to mean
+        # Solid stem from 0 to mean
         ax.plot([0, st["mean"]], [y, y],
-                color=col, linewidth=3.0, alpha=0.65, zorder=4,
+                color=col, linewidth=3.5, alpha=0.70, zorder=4,
                 solid_capstyle="round")
 
         # Mean dot
-        ax.scatter(st["mean"], y, s=180, color=col,
+        ax.scatter(st["mean"], y, s=200, color=col,
                    zorder=5, edgecolors="white", linewidths=2.0)
 
-        # P90 tick mark
-        ax.plot([st["p90"], st["p90"]], [y - 0.18, y + 0.18],
-                color=col, linewidth=1.5, alpha=0.5, zorder=4)
+        # P90 vertical tick mark
+        ax.plot([st["p90"], st["p90"]], [y - 0.20, y + 0.20],
+                color=col, linewidth=2.0, alpha=0.55, zorder=4)
 
-        # Mean value label (above dot)
-        ax.text(st["mean"] + offset, y + 0.08,
+        # Mean value label — always above the dot
+        ax.text(st["mean"] + offset, y + 0.22,
                 _fmt_stat(st["mean"]),
                 va="bottom", ha="left",
-                fontsize=10, fontweight="bold", color=col)
+                fontsize=11, fontweight="bold", color=col)
 
-        # P90 label
-        ax.text(st["p90"] + offset, y,
+        # P90 label — always below the whisker tick, right-aligned to tick
+        ax.text(st["p90"], y - 0.22,
                 f"P90: {_fmt_stat(st['p90'])}",
-                va="center", ha="left",
-                fontsize=7.5, color=col, alpha=0.75)
+                va="top", ha="center",
+                fontsize=7.5, color=col, alpha=0.80)
 
-        # Tweet count sub-label (below dot)
-        ax.text(offset, y - 0.22,
+        # Tweet count — far left, below the row
+        ax.text(offset, y - 0.42,
                 f"{cnt:,} tweets  ({cnt/N*100:.1f}% of dataset)",
                 va="top", ha="left", fontsize=7.5, color=TXT_MED)
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(groups, fontsize=10)
-    ax.set_ylim(-0.6, 1.6)
+    ax.set_ylim(-0.75, 1.75)
     ax.set_xlabel("View Count (non-zero tweets · dot = mean · band = IQR · whisker = P90)",
                   fontsize=7.5, color=TXT_MED, labelpad=6)
     ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
