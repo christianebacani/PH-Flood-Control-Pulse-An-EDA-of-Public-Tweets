@@ -169,7 +169,9 @@ def _panel_A(ax, df):
                  "Mean views per tweet — verified authors reach far wider audiences",
                  PURPLE)
 
+    # Order: Not Verified at bottom (y=0), Verified at top (y=1)
     groups  = ["Not Verified", "Verified"]
+    y_pos   = [0, 1]
     colors  = [SLATE, PURPLE]
     lt_cols = [SLATE_LT, PURPLE_LT]
     N       = len(df)
@@ -180,54 +182,60 @@ def _panel_A(ax, df):
     ]
     counts = [int((df["verify_label"] == g).sum()) for g in groups]
 
-    y_pos = [1, 0]   # Verified on top
+    # Compute xlim first so value labels are positioned correctly
+    max_p90 = max(s["p90"] for s in stats_list)
+    x_max   = max_p90 * 1.60
+    ax.set_xlim(0, x_max)
+    offset  = x_max * 0.015
 
-    for i, (g, st, col, lt, cnt, y) in enumerate(
-            zip(groups, stats_list, colors, lt_cols, counts, y_pos)):
+    for g, st, col, lt, cnt, y in zip(
+            groups, stats_list, colors, lt_cols, counts, y_pos):
 
-        # P25–P75 thick band
-        ax.barh(y, st["p75"] - st["p25"], left=st["p25"],
-                height=0.28, color=lt, alpha=0.85, zorder=2)
+        # Ensure IQR band has a minimum visible width (at least 2% of x_max)
+        iqr_left  = st["p25"]
+        iqr_width = max(st["p75"] - st["p25"], x_max * 0.02)
 
-        # P90 thin whisker
-        ax.plot([st["p25"], st["p90"]], [y, y],
-                color=col, linewidth=1.2, alpha=0.5, zorder=3)
+        # P25–P75 IQR band
+        ax.barh(y, iqr_width, left=iqr_left,
+                height=0.30, color=lt, alpha=0.85, zorder=2)
+
+        # P90 whisker — full line from 0 to P90 so it is always visible
+        ax.plot([0, st["p90"]], [y, y],
+                color=col, linewidth=1.5, alpha=0.35, zorder=3,
+                linestyle="--", dashes=(4, 3))
 
         # Stem from 0 to mean
         ax.plot([0, st["mean"]], [y, y],
-                color=col, linewidth=2.5, alpha=0.6, zorder=3,
+                color=col, linewidth=3.0, alpha=0.65, zorder=4,
                 solid_capstyle="round")
 
         # Mean dot
-        ax.scatter(st["mean"], y, s=160, color=col,
-                   zorder=5, edgecolors="white", linewidths=1.5)
+        ax.scatter(st["mean"], y, s=180, color=col,
+                   zorder=5, edgecolors="white", linewidths=2.0)
 
-        # Mean label
-        ax.text(st["mean"] + (ax.get_xlim()[1] if ax.get_xlim()[1] > 0 else 10000) * 0.015,
-                y + 0.06,
-                f"{_fmt_stat(st['mean'])}",
+        # P90 tick mark
+        ax.plot([st["p90"], st["p90"]], [y - 0.18, y + 0.18],
+                color=col, linewidth=1.5, alpha=0.5, zorder=4)
+
+        # Mean value label (above dot)
+        ax.text(st["mean"] + offset, y + 0.08,
+                _fmt_stat(st["mean"]),
                 va="bottom", ha="left",
                 fontsize=10, fontweight="bold", color=col)
 
-        # Sub: tweet count
-        ax.text(st["mean"] + (ax.get_xlim()[1] if ax.get_xlim()[1] > 0 else 10000) * 0.015,
-                y - 0.13,
-                f"{cnt:,} tweets  ({cnt/N*100:.1f}%)",
+        # P90 label
+        ax.text(st["p90"] + offset, y,
+                f"P90: {_fmt_stat(st['p90'])}",
+                va="center", ha="left",
+                fontsize=7.5, color=col, alpha=0.75)
+
+        # Tweet count sub-label (below dot)
+        ax.text(offset, y - 0.22,
+                f"{cnt:,} tweets  ({cnt/N*100:.1f}% of dataset)",
                 va="top", ha="left", fontsize=7.5, color=TXT_MED)
 
-    # Fix xlim after plotting
-    max_p90 = max(s["p90"] for s in stats_list)
-    ax.set_xlim(0, max_p90 * 1.55)
-
-    # Re-draw labels with correct xlim
-    offset = max_p90 * 1.55 * 0.015
-    for i, (g, st, col, cnt, y) in enumerate(
-            zip(groups, stats_list, colors, counts, y_pos)):
-        # Clear old annotations by redrawing (already positioned correctly below)
-        pass
-
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(["Verified", "Not Verified"], fontsize=10)
+    ax.set_yticklabels(groups, fontsize=10)
     ax.set_ylim(-0.6, 1.6)
     ax.set_xlabel("View Count (non-zero tweets · dot = mean · band = IQR · whisker = P90)",
                   fontsize=7.5, color=TXT_MED, labelpad=6)
@@ -304,7 +312,7 @@ def _panel_B(ax, df):
     ax.set_yticklabels(groups, fontsize=10)
     ax.set_ylim(-0.9, len(groups) - 0.1)
     ax.set_xlabel("Mean View Count →", fontsize=8, color=TXT_MED, labelpad=5)
-    ax2.set_xlabel("← Mean Retweet Count", fontsize=8, color=TXT_MED, labelpad=5)
+    ax2.set_xlabel("← Mean Retweet Count", fontsize=8, color=TXT_MED, labelpad=28)
     ax.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
     ax2.xaxis.set_major_formatter(FuncFormatter(_fmt_k))
 
@@ -601,8 +609,8 @@ def get_bivariate_analysis(data_source, save_path=None):
     gs = gridspec.GridSpec(
         2, 2, figure=fig,
         left=0.13, right=0.97,
-        top=0.900, bottom=0.07,
-        hspace=0.52, wspace=0.38,
+        top=0.868, bottom=0.07,
+        hspace=0.30, wspace=0.38,
     )
     ax_A = fig.add_subplot(gs[0, 0])
     ax_B = fig.add_subplot(gs[0, 1])
