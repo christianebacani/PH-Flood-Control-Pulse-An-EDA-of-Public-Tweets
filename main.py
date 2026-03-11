@@ -72,7 +72,7 @@ get_text_analysis(
 )
 
 # ── Bivariate Analyis — Dataset: Tweets ───────────────────────────────
-get_bivariate_analysis(
-    data_source = "data/for_export_dpwh_floodcontrol.csv",
-    save_path   = "output/for_export_dpwh_floodcontrol_bivariate_analysis.png"
+get_univariate_for_authors(
+    "data\well_known_authors_dpwh_floodcontrol.csv",
+    "output/well_known_authors_dpwh_floodcontrol_author_distribution.png"
 )
